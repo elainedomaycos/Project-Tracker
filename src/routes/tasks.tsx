@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/console";
 import { useState } from "react";
-import { useProject, type Task, type TaskStatus, type QaStatus, DEFAULT_DEVELOPERS } from "@/lib/project-context";
+import { useProject, type Task, type TaskStatus, type QaStatus } from "@/lib/project-context";
 import { Plus, X, Search, GitBranch, Copy, CheckCircle2, Clock, AlertTriangle, FileCheck, Users, Puzzle } from "lucide-react";
 
 export const Route = createFileRoute("/tasks")({
@@ -50,7 +50,7 @@ const FIELD_OPTIONS = [
 ];
 
 function TasksPage() {
-  const { projects, currentProject, getProjectTasks, getAnalytics, addTask, updateTask, removeTask, nextTaskId } = useProject();
+  const { projects, currentProject, getProjectTasks, getAnalytics, addTask, updateTask, removeTask, nextTaskId, developers } = useProject();
   const [showNewModal, setShowNewModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [search, setSearch] = useState("");
@@ -324,7 +324,7 @@ function TasksPage() {
                   <label className="text-[10px] font-mono uppercase text-muted-foreground">Developer</label>
                   <select value={form.developer} onChange={(e) => setForm((p) => ({ ...p, developer: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary">
                     <option value="">Unassigned</option>
-                    {DEFAULT_DEVELOPERS.map((d) => (
+                    {developers.map((d) => (
                       <option key={d} value={d}>{d}</option>
                     ))}
                   </select>
