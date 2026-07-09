@@ -62,9 +62,8 @@ function TasksPage() {
     dueDate: "", priority: "medium" as Task["priority"],
   });
 
-  const currentProj = projects.find((p) => p.id === pid);
-
   const pid = currentProject?.id ?? projects[0]?.id ?? "";
+  const currentProj = projects.find((p) => p.id === pid);
   const tasks = getProjectTasks(pid);
   const analytics = getAnalytics(pid);
 
