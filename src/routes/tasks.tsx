@@ -97,9 +97,7 @@ function TasksPage() {
   }
 
   function copyBranchName(task: Task) {
-    const prefix = task.taskId.toLowerCase();
-    const slug = task.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30);
-    const branch = `feature/${prefix}-${slug}`;
+    const branch = task.branch || `feature/${task.taskId.toLowerCase()}-${task.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30)}`;
     navigator.clipboard.writeText(branch).then(() => {
       setCopiedId(`branch-${task.id}`);
       setTimeout(() => setCopiedId(null), 1500);
@@ -191,7 +189,7 @@ function TasksPage() {
                 <Th>Status</Th>
                 <Th>QA</Th>
                 <Th>Due</Th>
-                <Th className="w-20" />
+                <Th>Branch</Th>
               </tr>
             </thead>
             <tbody>
@@ -252,13 +250,22 @@ function TasksPage() {
                     </span>
                   </Td>
                   <Td>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); copyBranchName(t); }}
-                      className="p-1 rounded hover:bg-surface-2 text-muted-foreground hover:text-primary"
-                      title="Copy git branch name"
-                    >
-                      {copiedId === `branch-${t.id}` ? <CheckCircle2 className="size-3.5 text-success" /> : <GitBranch className="size-3.5" />}
-                    </button>
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      <GitBranch className="size-3 text-muted-foreground shrink-0" />
+                      <input
+                        value={t.branch}
+                        onChange={(e) => updateTask(t.id, { branch: e.target.value })}
+                        className="w-40 px-1 py-0.5 bg-transparent border border-transparent hover:border-border focus:border-primary rounded text-[10px] font-mono text-muted-foreground focus:outline-none focus:bg-surface-2"
+                        title="Edit branch name"
+                      />
+                      <button
+                        onClick={() => copyBranchName(t)}
+                        className="p-0.5 rounded hover:bg-surface-2 text-muted-foreground hover:text-primary shrink-0"
+                        title="Copy branch name"
+                      >
+                        {copiedId === `branch-${t.id}` ? <CheckCircle2 className="size-3 text-success" /> : <Copy className="size-3" />}
+                      </button>
+                    </div>
                   </Td>
                 </tr>
               ))}
@@ -356,13 +363,21 @@ function TasksPage() {
             <div className="p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <span className="font-mono text-lg font-bold text-primary">{selectedTask.taskId}</span>
-                <button
-                  onClick={() => copyBranchName(selectedTask)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-2 border border-border rounded text-[10px] font-mono text-muted-foreground hover:text-foreground"
-                >
-                  <GitBranch className="size-3" />
-                  {copiedId === `branch-${selectedTask.id}` ? "Copied!" : "Copy Branch"}
-                </button>
+                <div className="flex items-center gap-2">
+                  <GitBranch className="size-3.5 text-muted-foreground" />
+                  <input
+                    value={selectedTask.branch}
+                    onChange={(e) => updateTask(selectedTask.id, { branch: e.target.value })}
+                    className="w-56 px-2 py-1 bg-surface-2 border border-border rounded text-[10px] font-mono text-muted-foreground focus:outline-none focus:border-primary"
+                    placeholder="feature/..."
+                  />
+                  <button
+                    onClick={() => copyBranchName(selectedTask)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 bg-surface-2 border border-border rounded text-[10px] font-mono text-muted-foreground hover:text-foreground shrink-0"
+                  >
+                    {copiedId === `branch-${selectedTask.id}` ? <CheckCircle2 className="size-3 text-success" /> : <Copy className="size-3" />}
+                  </button>
+                </div>
               </div>
 
               <div>

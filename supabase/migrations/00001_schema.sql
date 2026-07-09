@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   due_date TEXT DEFAULT '',
   start_date TEXT DEFAULT '',
   completed_at TEXT DEFAULT '',
-  priority TEXT DEFAULT 'medium'
+  priority TEXT DEFAULT 'medium',
+  branch_name TEXT DEFAULT ''
 );
 
 -- Settings (developers list, QA users, etc)

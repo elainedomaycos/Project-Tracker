@@ -21,6 +21,7 @@ export type Task = {
   startDate: string;
   completedAt: string;
   priority: "low" | "medium" | "high" | "critical";
+  branch: string;
 };
 
 export type Project = {
@@ -108,6 +109,7 @@ function toDbTask(t: Task) {
     start_date: t.startDate,
     completed_at: t.completedAt,
     priority: t.priority,
+    branch_name: t.branch,
   };
 }
 
@@ -129,6 +131,7 @@ function fromDbTask(r: any): Task {
     startDate: r.start_date || "",
     completedAt: r.completed_at || "",
     priority: r.priority || "medium",
+    branch: r.branch_name || "",
   };
 }
 
@@ -207,7 +210,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   function addTask(t: Omit<Task, "id" | "taskId">) {
     const tid = nextTaskId(t.projectId);
-    const task: Task = { id: generateId(), taskId: tid, ...t };
+    const slug = t.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30);
+    const branch = `feature/${tid.toLowerCase()}-${slug}`;
+    const task: Task = { id: generateId(), taskId: tid, branch, ...t };
     setTasks((prev) => [...prev, task]);
     db().from("tasks").insert(toDbTask(task)).then(() => {}).catch(() => {});
   }
@@ -229,6 +234,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       else if (k === "dueDate") dbUpdates.due_date = v;
       else if (k === "startDate") dbUpdates.start_date = v;
       else if (k === "completedAt") dbUpdates.completed_at = v;
+      else if (k === "branch") dbUpdates.branch_name = v;
       else dbUpdates[k] = v;
     }
     db().from("tasks").update(dbUpdates).eq("id", id).then(() => {}).catch(() => {});
@@ -301,30 +307,40 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }
 
   const addDeveloper = useCallback((name: string) => {
-    if (!name.trim() || developers.includes(name.trim())) return;
-    const next = [...developers, name.trim()];
-    setDeveloperState(next);
-    db().from("settings").upsert({ key: "developers", value: next }).then(() => {}).catch(() => {});
-  }, [developers]);
+    if (!name.trim()) return;
+    setDeveloperState((prev) => {
+      if (prev.includes(name.trim())) return prev;
+      const next = [...prev, name.trim()];
+      db().from("settings").upsert({ key: "developers", value: next }).then(() => {}).catch(() => {});
+      return next;
+    });
+  }, []);
 
   const removeDeveloper = useCallback((name: string) => {
-    const next = developers.filter((d) => d !== name);
-    setDeveloperState(next);
-    db().from("settings").upsert({ key: "developers", value: next }).then(() => {}).catch(() => {});
-  }, [developers]);
+    setDeveloperState((prev) => {
+      const next = prev.filter((d) => d !== name);
+      db().from("settings").upsert({ key: "developers", value: next }).then(() => {}).catch(() => {});
+      return next;
+    });
+  }, []);
 
   const addQaUser = useCallback((name: string) => {
-    if (!name.trim() || qaUsers.includes(name.trim())) return;
-    const next = [...qaUsers, name.trim()];
-    setQaState(next);
-    db().from("settings").upsert({ key: "qa_users", value: next }).then(() => {}).catch(() => {});
-  }, [qaUsers]);
+    if (!name.trim()) return;
+    setQaState((prev) => {
+      if (prev.includes(name.trim())) return prev;
+      const next = [...prev, name.trim()];
+      db().from("settings").upsert({ key: "qa_users", value: next }).then(() => {}).catch(() => {});
+      return next;
+    });
+  }, []);
 
   const removeQaUser = useCallback((name: string) => {
-    const next = qaUsers.filter((d) => d !== name);
-    setQaState(next);
-    db().from("settings").upsert({ key: "qa_users", value: next }).then(() => {}).catch(() => {});
-  }, [qaUsers]);
+    setQaState((prev) => {
+      const next = prev.filter((d) => d !== name);
+      db().from("settings").upsert({ key: "qa_users", value: next }).then(() => {}).catch(() => {});
+      return next;
+    });
+  }, []);
 
   return (
     <ProjectContext.Provider value={{
