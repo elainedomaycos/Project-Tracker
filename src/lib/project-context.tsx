@@ -13,6 +13,8 @@ export type Task = {
   developer: string;
   category: string;
   field: string;
+  endUser: string;
+  module: string;
   status: TaskStatus;
   qaStatus: QaStatus;
   commit: string;
@@ -29,6 +31,9 @@ export type Project = {
   name: string;
   prefix: string;
   createdAt: string;
+  clientName: string;
+  endUsers: string[];
+  modules: string[];
 };
 
 export type AppView = "pm" | "developer" | "qa" | "client";
@@ -45,7 +50,7 @@ type ProjectContextType = {
   setCurrentProject: (id: string) => void;
   setCurrentView: (v: AppView) => void;
   setCurrentDeveloper: (name: string) => void;
-  addProject: (name: string) => void;
+  addProject: (data: { name: string; clientName: string; endUsers: string[]; modules: string[] }) => void;
   removeProject: (id: string) => void;
   addTask: (t: Omit<Task, "id" | "taskId">) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
@@ -76,8 +81,8 @@ export type ProjectAnalytics = {
 };
 
 const DEFAULT_PROJECTS: Project[] = [
-  { id: "tourism", name: "Tourism Management System", prefix: "TS", createdAt: "2026-03-01" },
-  { id: "cbms", name: "CBMMS", prefix: "CBMMS", createdAt: "2026-02-15" },
+  { id: "tourism", name: "Tourism Management System", prefix: "TS", createdAt: "2026-03-01", clientName: "", endUsers: [], modules: [] },
+  { id: "cbms", name: "CBMMS", prefix: "CBMMS", createdAt: "2026-02-15", clientName: "", endUsers: [], modules: [] },
 ];
 
 const DEFAULT_DEVELOPERS = ["Rachel", "Mcdoel", "Alvin", "John", "Elaine", "Carl"];
@@ -101,6 +106,8 @@ function toDbTask(t: Task) {
     developer: t.developer,
     category: t.category,
     field: t.field,
+    end_user: t.endUser,
+    module: t.module,
     status: t.status,
     qa_status: t.qaStatus,
     commit: t.commit,
@@ -123,6 +130,8 @@ function fromDbTask(r: any): Task {
     developer: r.developer || "",
     category: r.category || "",
     field: r.field || "",
+    endUser: r.end_user || "",
+    module: r.module || "",
     status: r.status || "pending",
     qaStatus: r.qa_status || "waiting",
     commit: r.commit || "",
@@ -136,7 +145,12 @@ function fromDbTask(r: any): Task {
 }
 
 function fromDbProject(r: any): Project {
-  return { id: r.id, name: r.name, prefix: r.prefix, createdAt: r.created_at };
+  return {
+    id: r.id, name: r.name, prefix: r.prefix, createdAt: r.created_at,
+    clientName: r.client_name || "",
+    endUsers: r.end_users || [],
+    modules: r.modules || [],
+  };
 }
 
 const ProjectContext = createContext<ProjectContextType | null>(null);
@@ -187,14 +201,20 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     if (found) setCurrentProjectState(found);
   }
 
-  function addProject(name: string) {
-    const id = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    const words = name.split(" ");
+  function addProject(data: { name: string; clientName: string; endUsers: string[]; modules: string[] }) {
+    const id = data.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    const words = data.name.split(" ");
     const prefix = words.map(w => w[0]).join("").toUpperCase().slice(0, 4) || "PRJ";
-    const p: Project = { id, name, prefix, createdAt: new Date().toISOString().slice(0, 10) };
+    const p: Project = {
+      id, name: data.name, prefix, createdAt: new Date().toISOString().slice(0, 10),
+      clientName: data.clientName, endUsers: data.endUsers, modules: data.modules,
+    };
     setProjects((prev) => [...prev, p]);
     setCurrentProjectState(p);
-    db().from("projects").insert({ id, name, prefix, created_at: p.createdAt }).then(() => {}).catch(() => {});
+    db().from("projects").insert({
+      id, name: data.name, prefix, created_at: p.createdAt,
+      client_name: data.clientName, end_users: data.endUsers, modules: data.modules,
+    }).then(() => {}).catch(() => {});
   }
 
   function removeProject(id: string) {
@@ -212,7 +232,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     const tid = nextTaskId(t.projectId);
     const slug = t.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30);
     const branch = `feature/${tid.toLowerCase()}-${slug}`;
-    const task: Task = { id: generateId(), taskId: tid, branch, ...t };
+    const task: Task = { id: generateId(), taskId: tid, branch, endUser: "", module: "", ...t };
     setTasks((prev) => [...prev, task]);
     db().from("tasks").insert(toDbTask(task)).then(() => {}).catch(() => {});
   }
@@ -235,6 +255,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       else if (k === "startDate") dbUpdates.start_date = v;
       else if (k === "completedAt") dbUpdates.completed_at = v;
       else if (k === "branch") dbUpdates.branch_name = v;
+      else if (k === "endUser") dbUpdates.end_user = v;
+      else if (k === "module") dbUpdates.module = v;
       else dbUpdates[k] = v;
     }
     db().from("tasks").update(dbUpdates).eq("id", id).then(() => {}).catch(() => {});

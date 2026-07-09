@@ -5,6 +5,9 @@ CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   prefix TEXT NOT NULL,
+  client_name TEXT DEFAULT '',
+  end_users JSONB DEFAULT '[]',
+  modules JSONB DEFAULT '[]',
   created_at TEXT NOT NULL
 );
 
@@ -26,7 +29,9 @@ CREATE TABLE IF NOT EXISTS tasks (
   start_date TEXT DEFAULT '',
   completed_at TEXT DEFAULT '',
   priority TEXT DEFAULT 'medium',
-  branch_name TEXT DEFAULT ''
+  branch_name TEXT DEFAULT '',
+  end_user TEXT DEFAULT '',
+  module TEXT DEFAULT ''
 );
 
 -- Settings (developers list, QA users, etc)

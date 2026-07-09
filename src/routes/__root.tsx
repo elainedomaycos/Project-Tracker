@@ -235,12 +235,17 @@ function AppShell({ pathname, queryClient }: { pathname: string; queryClient: Qu
 function ProjectSelector() {
   const { projects, currentProject, setCurrentProject, addProject, removeProject } = useProject();
   const [showModal, setShowModal] = useState(false);
-  const [name, setName] = useState("");
+  const [form, setForm] = useState({ name: "", clientName: "", endUsers: "", modules: "" });
 
   function handleCreate() {
-    if (!name.trim()) return;
-    addProject(name.trim());
-    setName("");
+    if (!form.name.trim()) return;
+    addProject({
+      name: form.name.trim(),
+      clientName: form.clientName.trim(),
+      endUsers: form.endUsers.split(",").map((s) => s.trim()).filter(Boolean),
+      modules: form.modules.split(",").map((s) => s.trim()).filter(Boolean),
+    });
+    setForm({ name: "", clientName: "", endUsers: "", modules: "" });
     setShowModal(false);
   }
 
@@ -289,13 +294,25 @@ function ProjectSelector() {
             <div className="p-4 space-y-3">
               <div>
                 <label className="text-[10px] font-mono uppercase text-muted-foreground">Project Name *</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Tourism Website" className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" autoFocus />
+                <input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} placeholder="e.g. Tourism Website" className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" autoFocus />
                 <p className="text-[10px] text-muted-foreground mt-1">Task IDs will be auto-generated from the project name (e.g. TS-001)</p>
+              </div>
+              <div>
+                <label className="text-[10px] font-mono uppercase text-muted-foreground">Client Name</label>
+                <input value={form.clientName} onChange={(e) => setForm((p) => ({ ...p, clientName: e.target.value }))} placeholder="e.g. Acme Corp" className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="text-[10px] font-mono uppercase text-muted-foreground">End Users</label>
+                <input value={form.endUsers} onChange={(e) => setForm((p) => ({ ...p, endUsers: e.target.value }))} placeholder="Comma-separated (e.g. Admin, Manager, Staff)" className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="text-[10px] font-mono uppercase text-muted-foreground">Modules</label>
+                <input value={form.modules} onChange={(e) => setForm((p) => ({ ...p, modules: e.target.value }))} placeholder="Comma-separated (e.g. Dashboard, Reports, Auth)" className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" />
               </div>
             </div>
             <div className="flex justify-end gap-2 px-4 py-3 border-t border-border">
               <button onClick={() => setShowModal(false)} className="px-3 py-1.5 text-xs font-medium rounded border border-border hover:bg-surface-2">Cancel</button>
-              <button onClick={handleCreate} disabled={!name.trim()} className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 disabled:opacity-50">Create</button>
+              <button onClick={handleCreate} disabled={!form.name.trim()} className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 disabled:opacity-50">Create</button>
             </div>
           </div>
         </div>
