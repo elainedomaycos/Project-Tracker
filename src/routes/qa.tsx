@@ -88,7 +88,6 @@ function QaPage() {
                       <User className="size-3" />
                       {t.developer}
                     </div>
-                    <span>{t.category}</span>
                     <span>{t.field}</span>
                     {t.dueDate && <span>Due: {t.dueDate}</span>}
                   </div>

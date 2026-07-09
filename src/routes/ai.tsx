@@ -201,16 +201,15 @@ function AIHub() {
       );
     }
 
-    function createTasksFrom(items: { title: string; description?: string; priority?: string }[], category: string) {
+    function createTasksFrom(items: { title: string; description?: string; priority?: string }[], aiField: string) {
       if (!currentProject) return;
       items.forEach((item) => {
         addTask({
           projectId: currentProject.id,
           title: item.title,
-          description: item.description || `From AI: ${category}`,
+          description: item.description || `From AI: ${aiField}`,
           developer: currentProject.id === "tourism" ? "Rachel" : "John",
-          category,
-          field: "fullstack",
+          field: aiField,
           status: "pending",
           qaStatus: "waiting",
           commit: "",

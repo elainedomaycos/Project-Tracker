@@ -157,37 +157,37 @@ function ClientPage() {
                   ))}
                 </div>
 
-                {/* Module Progress */}
-                {a.categoryProgress.length > 0 && (
+                {/* Field Progress */}
+                {a.fieldProgress.length > 0 && (
                   <div>
                     <h3 className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
                       <ScrollText className="size-3" />
-                      Module Progress
+                      Field Progress
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {a.categoryProgress.map((cat) => (
-                        <div key={cat.name} className="bg-surface-2 border border-border rounded-lg p-4">
+                      {a.fieldProgress.map((f) => (
+                        <div key={f.name} className="bg-surface-2 border border-border rounded-lg p-4">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium">{cat.name}</span>
-                            <span className="text-xs text-muted-foreground">{cat.done}/{cat.total} tasks</span>
+                            <span className="text-sm font-medium">{f.name}</span>
+                            <span className="text-xs text-muted-foreground">{f.done}/{f.total} tasks</span>
                           </div>
                           <div className="h-2 bg-white/5 rounded-full overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all ${
-                                cat.pct >= 80 ? "bg-success" : cat.pct >= 50 ? "bg-warning" : "bg-destructive"
+                                f.pct >= 80 ? "bg-success" : f.pct >= 50 ? "bg-warning" : "bg-destructive"
                               }`}
-                              style={{ width: `${cat.pct}%` }}
+                              style={{ width: `${f.pct}%` }}
                             />
                           </div>
                           <div className="flex items-center justify-between mt-1.5">
                             <span className={`text-[10px] font-mono font-bold ${
-                              cat.pct >= 80 ? "text-success" : cat.pct >= 50 ? "text-warning" : "text-destructive"
+                              f.pct >= 80 ? "text-success" : f.pct >= 50 ? "text-warning" : "text-destructive"
                             }`}>
-                              {cat.pct}%
+                              {f.pct}%
                             </span>
-                            {cat.pct >= 80 && <CheckCircle2 className="size-3 text-success" />}
-                            {cat.pct > 0 && cat.pct < 80 && <Clock className="size-3 text-warning" />}
-                            {cat.pct === 0 && <Circle className="size-3 text-muted-foreground" />}
+                            {f.pct >= 80 && <CheckCircle2 className="size-3 text-success" />}
+                            {f.pct > 0 && f.pct < 80 && <Clock className="size-3 text-warning" />}
+                            {f.pct === 0 && <Circle className="size-3 text-muted-foreground" />}
                           </div>
                         </div>
                       ))}

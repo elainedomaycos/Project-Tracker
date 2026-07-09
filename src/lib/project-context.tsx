@@ -11,7 +11,6 @@ export type Task = {
   title: string;
   description: string;
   developer: string;
-  category: string;
   field: string;
   endUser: string;
   module: string;
@@ -74,7 +73,7 @@ export type ProjectAnalytics = {
   pending: number;
   overallProgress: number;
   devProgress: { name: string; done: number; total: number; pct: number }[];
-  categoryProgress: { name: string; done: number; total: number; pct: number }[];
+  fieldProgress: { name: string; done: number; total: number; pct: number }[];
   qaPassed: number;
   qaFailed: number;
   qaWaiting: number;
@@ -104,7 +103,6 @@ function toDbTask(t: Task) {
     title: t.title,
     description: t.description,
     developer: t.developer,
-    category: t.category,
     field: t.field,
     end_user: t.endUser,
     module: t.module,
@@ -128,7 +126,6 @@ function fromDbTask(r: any): Task {
     title: r.title,
     description: r.description || "",
     developer: r.developer || "",
-    category: r.category || "",
     field: r.field || "",
     endUser: r.end_user || "",
     module: r.module || "",
@@ -191,8 +188,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!currentProject && projects.length > 0) {
-      setCurrentProjectState(projects[0]);
+    if (projects.length > 0) {
+      if (!currentProject || !projects.find((p) => p.id === currentProject.id)) {
+        setCurrentProjectState(projects[0]);
+      }
     }
   }, [projects, currentProject]);
 
@@ -311,21 +310,21 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     const devProgress = Array.from(devMap.entries()).map(([name, d]) => ({
       name, done: d.done, total: d.total, pct: d.total > 0 ? Math.round((d.done / d.total) * 100) : 0,
     })).sort((a, b) => b.pct - a.pct);
-    const catMap = new Map<string, { done: number; total: number }>();
+    const fieldMap = new Map<string, { done: number; total: number }>();
     pt.forEach((t) => {
-      if (!t.category) return;
-      const entry = catMap.get(t.category) ?? { done: 0, total: 0 };
+      if (!t.field) return;
+      const entry = fieldMap.get(t.field) ?? { done: 0, total: 0 };
       entry.total++;
       if (t.status === "done") entry.done++;
-      catMap.set(t.category, entry);
+      fieldMap.set(t.field, entry);
     });
-    const categoryProgress = Array.from(catMap.entries()).map(([name, d]) => ({
+    const fieldProgress = Array.from(fieldMap.entries()).map(([name, d]) => ({
       name, done: d.done, total: d.total, pct: d.total > 0 ? Math.round((d.done / d.total) * 100) : 0,
     })).sort((a, b) => b.pct - a.pct);
     const qaPassed = pt.filter((t) => t.qaStatus === "passed").length;
     const qaFailed = pt.filter((t) => t.qaStatus === "failed").length;
     const qaWaiting = pt.filter((t) => t.status === "qa" || t.qaStatus === "waiting").length;
-    return { total, done, qa, doing, pending, overallProgress, devProgress, categoryProgress, qaPassed, qaFailed, qaWaiting };
+    return { total, done, qa, doing, pending, overallProgress, devProgress, fieldProgress, qaPassed, qaFailed, qaWaiting };
   }
 
   const addDeveloper = useCallback((name: string) => {

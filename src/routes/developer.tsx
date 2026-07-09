@@ -84,7 +84,7 @@ function DeveloperPage() {
                       <span className="text-[9px] font-mono text-muted-foreground ml-auto">{t.developer}</span>
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">
-                      {t.category && `${t.category} · `}{t.field && `${t.field} · `}Due: {t.dueDate || "—"}
+                      {t.field && `${t.field} · `}Due: {t.dueDate || "—"}
                     </div>
                   </div>
 
