@@ -41,12 +41,8 @@ const QA_COLOR: Record<string, string> = {
   failed: "bg-destructive/10 text-destructive",
 };
 
-const CATEGORY_OPTIONS = [
-  "Frontend", "Backend", "Database", "DevOps", "UI/UX", "Documentation", "Testing", "Security",
-];
-
 const FIELD_OPTIONS = [
-  "Authentication", "API", "Reports", "Dashboard", "Forms", "Integration", "Configuration", "Migration",
+  "Full Stack", "Front End", "Back End", "Database", "UI/UX", "Testing",
 ];
 
 function TasksPage() {
@@ -57,7 +53,7 @@ function TasksPage() {
   const [filterStatus, setFilterStatus] = useState<TaskStatus | "all">("all");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [form, setForm] = useState({
-    title: "", description: "", developer: "", category: "", field: "", endUser: "", module: "",
+    title: "", description: "", developer: "", field: "", endUser: "", module: "",
     startDate: new Date().toISOString().slice(0, 10),
     dueDate: "", priority: "medium" as Task["priority"],
   });
@@ -83,7 +79,6 @@ function TasksPage() {
       title: form.title.trim(),
       description: form.description.trim(),
       developer: form.developer,
-      category: form.category,
       field: form.field,
       endUser: form.endUser,
       module: form.module,
@@ -96,7 +91,7 @@ function TasksPage() {
       completedAt: "",
       priority: form.priority,
     });
-    setForm({ title: "", description: "", developer: "", category: "", field: "", endUser: "", module: "", startDate: new Date().toISOString().slice(0, 10), dueDate: "", priority: "medium" });
+    setForm({ title: "", description: "", developer: "", field: "", endUser: "", module: "", startDate: new Date().toISOString().slice(0, 10), dueDate: "", priority: "medium" });
     setShowNewModal(false);
   }
 
@@ -195,13 +190,14 @@ function TasksPage() {
             <thead>
               <tr className="bg-surface-2 border-b border-border">
                 <Th>ID</Th>
+                <Th>End User</Th>
+                <Th>Module</Th>
                 <Th className="min-w-[250px]">Task</Th>
+                <Th className="min-w-[200px]">Description</Th>
                 <Th>Developer</Th>
                 <Th>Status</Th>
                 <Th>QA</Th>
                 <Th>Due</Th>
-                <Th>End User</Th>
-                <Th>Module</Th>
                 <Th>Branch</Th>
               </tr>
             </thead>
@@ -225,12 +221,21 @@ function TasksPage() {
                     </div>
                   </Td>
                   <Td>
+                    <span className="text-[10px] font-mono text-muted-foreground">{t.endUser || "—"}</span>
+                  </Td>
+                  <Td>
+                    <span className="text-[10px] font-mono text-muted-foreground">{t.module || "—"}</span>
+                  </Td>
+                  <Td>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-medium truncate max-w-[300px]">{t.title}</span>
                       {t.priority === "high" || t.priority === "critical" ? (
                         <AlertTriangle className={`size-3 shrink-0 ${t.priority === "critical" ? "text-destructive" : "text-warning"}`} />
                       ) : null}
                     </div>
+                  </Td>
+                  <Td>
+                    <span className="text-[10px] font-mono text-muted-foreground truncate max-w-[200px] block">{t.description || "—"}</span>
                   </Td>
                   <Td>
                     <div className="flex items-center gap-1.5">
@@ -263,12 +268,6 @@ function TasksPage() {
                     </span>
                   </Td>
                   <Td>
-                    <span className="text-[10px] font-mono text-muted-foreground">{t.endUser || "—"}</span>
-                  </Td>
-                  <Td>
-                    <span className="text-[10px] font-mono text-muted-foreground">{t.module || "—"}</span>
-                  </Td>
-                  <Td>
                     <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       <GitBranch className="size-3 text-muted-foreground shrink-0" />
                       <input
@@ -290,7 +289,7 @@ function TasksPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-sm text-muted-foreground">
+                  <td colSpan={10} className="text-center py-12 text-sm text-muted-foreground">
                     {search || filterStatus !== "all" ? "No tasks match your filters." : "No tasks yet. Create your first task!"}
                   </td>
                 </tr>
@@ -339,25 +338,14 @@ function TasksPage() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-mono uppercase text-muted-foreground">Category</label>
-                  <select value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary">
-                    <option value="">—</option>
-                    {CATEGORY_OPTIONS.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[10px] font-mono uppercase text-muted-foreground">Field</label>
-                  <select value={form.field} onChange={(e) => setForm((p) => ({ ...p, field: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary">
-                    <option value="">—</option>
-                    {FIELD_OPTIONS.map((f) => (
-                      <option key={f} value={f}>{f}</option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="text-[10px] font-mono uppercase text-muted-foreground">Field</label>
+                <select value={form.field} onChange={(e) => setForm((p) => ({ ...p, field: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary">
+                  <option value="">—</option>
+                  {FIELD_OPTIONS.map((f) => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -454,10 +442,6 @@ function TasksPage() {
                 <div>
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Field</div>
                   <span className="text-sm">{selectedTask.field || "—"}</span>
-                </div>
-                <div>
-                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Category</div>
-                  <span className="text-sm">{selectedTask.category || "—"}</span>
                 </div>
                 <div>
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">End User</div>
