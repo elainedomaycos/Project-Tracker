@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/console";
 import { useAuth } from "@/lib/auth-context";
+import { useProject } from "@/lib/project-context";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Trash2, Send, UserPlus } from "lucide-react";
 
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/admin")({
 
 function AdminPage() {
   const { profile, isSuperAdmin } = useAuth();
+  const { developers, qaUsers, addDeveloper, removeDeveloper, addQaUser, removeQaUser } = useProject();
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -25,14 +27,11 @@ function AdminPage() {
   const [message, setMessage] = useState<string | null>(null);
 
   const [invitations, setInvitations] = useState<any[]>([]);
-  const [developers, setDevelopers] = useState<string[]>([]);
-  const [qaUsers, setQaUsers] = useState<string[]>([]);
   const [newDev, setNewDev] = useState("");
   const [newQa, setNewQa] = useState("");
 
   useEffect(() => {
     loadInvitations();
-    loadSettings();
   }, []);
 
   async function loadInvitations() {
@@ -40,17 +39,6 @@ function AdminPage() {
       const { data } = await supabase.from("invitations").select("*").order("created_at", { ascending: false });
       if (data) setInvitations(data);
     } catch { /* table may not exist yet */ }
-  }
-
-  async function loadSettings() {
-    try {
-      const { data } = await supabase.from("settings").select("*");
-      if (!data) return;
-      const devs = data.find((s) => s.key === "developers")?.value ?? [];
-      const qas = data.find((s) => s.key === "qa_users")?.value ?? [];
-      setDevelopers(devs);
-      setQaUsers(qas);
-    } catch { /* ignore */ }
   }
 
   async function handleInvite(e: React.FormEvent) {
@@ -81,38 +69,6 @@ function AdminPage() {
   async function removeInvitation(id: string) {
     await supabase.from("invitations").delete().eq("id", id);
     loadInvitations();
-  }
-
-  async function updateSettings(key: string, value: string[]) {
-    await supabase.from("settings").upsert({ key, value });
-  }
-
-  function addDeveloper() {
-    if (!newDev.trim()) return;
-    const updated = [...developers, newDev.trim()];
-    setDevelopers(updated);
-    updateSettings("developers", updated);
-    setNewDev("");
-  }
-
-  function removeDeveloper(name: string) {
-    const updated = developers.filter((d) => d !== name);
-    setDevelopers(updated);
-    updateSettings("developers", updated);
-  }
-
-  function addQaUser() {
-    if (!newQa.trim()) return;
-    const updated = [...qaUsers, newQa.trim()];
-    setQaUsers(updated);
-    updateSettings("qa_users", updated);
-    setNewQa("");
-  }
-
-  function removeQaUser(name: string) {
-    const updated = qaUsers.filter((d) => d !== name);
-    setQaUsers(updated);
-    updateSettings("qa_users", updated);
   }
 
   if (!isSuperAdmin) {
@@ -222,7 +178,7 @@ function AdminPage() {
               </div>
               <div className="flex gap-2">
                 <input value={newDev} onChange={(e) => setNewDev(e.target.value)} placeholder="Add developer name" className="flex-1 px-3 py-1.5 rounded-md bg-background border border-border text-sm focus:outline-none focus:border-primary" />
-                <button onClick={addDeveloper} disabled={!newDev.trim()} className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-bold hover:brightness-110 disabled:opacity-50 flex items-center gap-1">
+                <button onClick={() => { addDeveloper(newDev); setNewDev(""); }} disabled={!newDev.trim()} className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-bold hover:brightness-110 disabled:opacity-50 flex items-center gap-1">
                   <Plus className="size-3.5" />
                   Add
                 </button>
@@ -246,7 +202,7 @@ function AdminPage() {
               </div>
               <div className="flex gap-2">
                 <input value={newQa} onChange={(e) => setNewQa(e.target.value)} placeholder="Add QA name" className="flex-1 px-3 py-1.5 rounded-md bg-background border border-border text-sm focus:outline-none focus:border-primary" />
-                <button onClick={addQaUser} disabled={!newQa.trim()} className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-bold hover:brightness-110 disabled:opacity-50 flex items-center gap-1">
+                <button onClick={() => { addQaUser(newQa); setNewQa(""); }} disabled={!newQa.trim()} className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-bold hover:brightness-110 disabled:opacity-50 flex items-center gap-1">
                   <Plus className="size-3.5" />
                   Add
                 </button>
