@@ -147,13 +147,14 @@ const EXTRA_NAV: readonly NavItem[] = [
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isAuthPage = pathname === "/auth";
 
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ProjectProvider>
           <AuthGate>
-            <AppShell pathname={pathname} queryClient={queryClient} />
+            {isAuthPage ? <Outlet /> : <AppShell pathname={pathname} queryClient={queryClient} />}
           </AuthGate>
         </ProjectProvider>
       </AuthProvider>
@@ -181,6 +182,7 @@ function AuthGate({ children }: { children: ReactNode }) {
   }
 
   if (user && isAuthPage) {
+    router.navigate({ to: "/" });
     return null;
   }
 
