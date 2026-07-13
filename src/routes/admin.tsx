@@ -121,9 +121,11 @@ function AdminPage() {
         <PageHeader
           crumbs={[{ label: "Admin" }]}
         />
-        <div className="flex-1 overflow-y-auto p-6 max-w-3xl">
-          <div className="text-center py-12 bg-card border border-border rounded-lg">
-            <p className="text-sm text-muted-foreground">You don't have permission to manage users.</p>
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center py-12 bg-card border border-border rounded-lg">
+              <p className="text-sm text-muted-foreground">You don't have permission to manage users.</p>
+            </div>
           </div>
         </div>
       </>
@@ -135,8 +137,8 @@ function AdminPage() {
       <PageHeader
         crumbs={[{ label: "Admin" }]}
       />
-      <div className="flex-1 overflow-y-auto p-6 max-w-3xl">
-        <div className="space-y-8">
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="max-w-3xl mx-auto space-y-8">
           {/* Invite User */}
           <section>
             <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
