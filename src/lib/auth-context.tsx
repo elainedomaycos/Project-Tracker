@@ -40,10 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
-        loadProfile(u.id, u.email ?? "").finally(() => { if (!cancelled) setLoading(false); });
-      } else {
-        if (!cancelled) setLoading(false);
+        loadProfile(u.id, u.email ?? "");
       }
+      if (!cancelled) setLoading(false);
     }).catch(() => { if (!cancelled) setLoading(false); });
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
