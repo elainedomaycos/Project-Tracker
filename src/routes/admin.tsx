@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/console";
 import { useAuth } from "@/lib/auth-context";
@@ -17,7 +17,6 @@ export const Route = createFileRoute("/admin")({
 
 function AdminPage() {
   const { profile, isSuperAdmin } = useAuth();
-  const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -37,17 +36,21 @@ function AdminPage() {
   }, []);
 
   async function loadInvitations() {
-    const { data } = await supabase.from("invitations").select("*").order("created_at", { ascending: false });
-    if (data) setInvitations(data);
+    try {
+      const { data } = await supabase.from("invitations").select("*").order("created_at", { ascending: false });
+      if (data) setInvitations(data);
+    } catch { /* table may not exist yet */ }
   }
 
   async function loadSettings() {
-    const { data } = await supabase.from("settings").select("*");
-    if (!data) return;
-    const devs = data.find((s) => s.key === "developers")?.value ?? [];
-    const qas = data.find((s) => s.key === "qa_users")?.value ?? [];
-    setDevelopers(devs);
-    setQaUsers(qas);
+    try {
+      const { data } = await supabase.from("settings").select("*");
+      if (!data) return;
+      const devs = data.find((s) => s.key === "developers")?.value ?? [];
+      const qas = data.find((s) => s.key === "qa_users")?.value ?? [];
+      setDevelopers(devs);
+      setQaUsers(qas);
+    } catch { /* ignore */ }
   }
 
   async function handleInvite(e: React.FormEvent) {
