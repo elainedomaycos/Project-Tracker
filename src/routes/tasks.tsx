@@ -458,12 +458,25 @@ function TasksPage() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Developer</div>
-                  <div className="flex items-center gap-2">
-                    <div className="size-6 rounded-full bg-surface-2 border border-border grid place-items-center text-[9px] font-bold">
-                      {selectedTask.developer?.slice(0, 2).toUpperCase() || "—"}
+                  {isSuperAdmin ? (
+                    <select
+                      value={selectedTask.developer}
+                      onChange={(e) => updateTask(selectedTask.id, { developer: e.target.value })}
+                      className="w-full px-2 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                    >
+                      <option value="">Unassigned</option>
+                      {developers.map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="size-6 rounded-full bg-surface-2 border border-border grid place-items-center text-[9px] font-bold">
+                        {selectedTask.developer?.slice(0, 2).toUpperCase() || "—"}
+                      </div>
+                      <span className="text-sm">{selectedTask.developer || "Unassigned"}</span>
                     </div>
-                    <span className="text-sm">{selectedTask.developer || "Unassigned"}</span>
-                  </div>
+                  )}
                 </div>
                 <div>
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Field</div>
