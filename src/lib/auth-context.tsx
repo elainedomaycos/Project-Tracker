@@ -35,15 +35,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
+    setLoading(false);
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (cancelled) return;
       const u = session?.user ?? null;
       setUser(u);
-      if (u) {
-        loadProfile(u.id, u.email ?? "");
-      }
-      if (!cancelled) setLoading(false);
-    }).catch(() => { if (!cancelled) setLoading(false); });
+      if (u) loadProfile(u.id, u.email ?? "");
+    }).catch(() => {});
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       const u = session?.user ?? null;
@@ -53,7 +52,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setProfile(null);
       }
-      if (event !== "INITIAL_SESSION" && !cancelled) setLoading(false);
     });
 
     return () => { cancelled = true; listener?.subscription.unsubscribe(); };
