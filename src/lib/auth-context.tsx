@@ -35,14 +35,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    setLoading(false);
+    const forceDone = setTimeout(() => { if (!cancelled) setLoading(false); }, 3000);
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (cancelled) return;
+      clearTimeout(forceDone);
       const u = session?.user ?? null;
       setUser(u);
-      if (u) loadProfile(u.id, u.email ?? "");
-    }).catch(() => {});
+      if (u) {
+        loadProfile(u.id, u.email ?? "");
+      }
+      if (!cancelled) setLoading(false);
+    }).catch(() => { if (!cancelled) { clearTimeout(forceDone); setLoading(false); } });
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       const u = session?.user ?? null;
@@ -52,9 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setProfile(null);
       }
+      if (event !== "INITIAL_SESSION" && !cancelled) { clearTimeout(forceDone); setLoading(false); }
     });
 
-    return () => { cancelled = true; listener?.subscription.unsubscribe(); };
+    return () => { cancelled = true; clearTimeout(forceDone); listener?.subscription.unsubscribe(); };
   }, []);
 
   async function loadProfile(userId: string, email: string) {
