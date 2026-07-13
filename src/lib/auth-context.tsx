@@ -39,8 +39,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       const u = session?.user ?? null;
       setUser(u);
-      if (u) loadProfile(u.id, u.email ?? "");
-    }).catch(() => {});
+      if (u) {
+        loadProfile(u.id, u.email ?? "");
+      }
+      if (!cancelled) setLoading(false);
+    }).catch(() => { if (!cancelled) setLoading(false); });
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       const u = session?.user ?? null;
@@ -50,9 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setProfile(null);
       }
+      if (event !== "INITIAL_SESSION" && !cancelled) setLoading(false);
     });
-
-    setLoading(false);
 
     return () => { cancelled = true; listener?.subscription.unsubscribe(); };
   }, []);
@@ -76,15 +78,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } else {
       let role: UserRole = isSuper ? "super_admin" : "developer";
+      let inviteName = "";
       if (!isSuper) {
         const { data: invite } = await supabase
           .from("invitations")
-          .select("role")
+          .select("role, name")
           .eq("email", email.toLowerCase())
           .maybeSingle();
-        if (invite) role = invite.role as UserRole;
+        if (invite) {
+          role = invite.role as UserRole;
+          inviteName = invite.name;
+        }
       }
-      const newProfile: Profile = { id: userId, email, name: "", role };
+      const newProfile: Profile = { id: userId, email, name: inviteName, role };
       await supabase.from("profiles").insert(newProfile);
       setProfile(newProfile);
     }
@@ -101,15 +107,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.user) {
       const isSuper = SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
       let role: UserRole = isSuper ? "super_admin" : "developer";
+      let profileName = name;
       if (!isSuper) {
         const { data: invite } = await supabase
           .from("invitations")
-          .select("role")
+          .select("role, name")
           .eq("email", email.toLowerCase())
           .maybeSingle();
-        if (invite) role = invite.role as UserRole;
+        if (invite) {
+          role = invite.role as UserRole;
+          profileName = invite.name;
+        }
       }
-      const newProfile: Profile = { id: data.user.id, email, name, role };
+      const newProfile: Profile = { id: data.user.id, email, name: profileName, role };
       await supabase.from("profiles").upsert(newProfile);
       setProfile(newProfile);
     }

@@ -17,7 +17,7 @@ export const Route = createFileRoute("/developer")({
 
 function DeveloperPage() {
   const { tasks, currentProject, developers, qaUsers, updateTask, addDeveloper, removeDeveloper, addQaUser, removeQaUser } = useProject();
-  const { isSuperAdmin, isQa } = useAuth();
+  const { profile, isSuperAdmin, isQa } = useAuth();
   const [filterDev, setFilterDev] = useState("all");
   const [showUsers, setShowUsers] = useState(false);
   const [newDev, setNewDev] = useState("");
@@ -93,7 +93,7 @@ function DeveloperPage() {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    {isQa ? (
+                    {isQa || (!isSuperAdmin && t.developer !== profile?.name) ? (
                       <span className="px-2 py-1 text-[10px] font-mono text-muted-foreground bg-surface-2 rounded">
                         {t.status === "pending" ? "Pending" : t.status === "doing" ? "In Progress" : t.status === "qa" ? "In QA" : "Done"}
                       </span>

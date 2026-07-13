@@ -48,9 +48,8 @@ const FIELD_OPTIONS = [
 
 function TasksPage() {
   const { projects, currentProject, getProjectTasks, getAnalytics, addTask, updateTask, removeTask, nextTaskId, developers } = useProject();
-  const { isSuperAdmin, isDeveloper, isQa, profile } = useAuth();
-  const devName = profile?.name ?? "";
-  const isAssigned = (task: Task) => isDeveloper && task.developer.toLowerCase() === devName.toLowerCase();
+  const { profile, isSuperAdmin, isDeveloper, isQa } = useAuth();
+  const canEditTask = (task: Task) => isSuperAdmin || (isDeveloper && task.developer === profile?.name);
   const [showNewModal, setShowNewModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [search, setSearch] = useState("");
@@ -252,7 +251,7 @@ function TasksPage() {
                     </div>
                   </Td>
                   <Td>
-                    {isQa || (isDeveloper && !isAssigned(t)) ? (
+                    {!canEditTask(t) ? (
                       <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${STATUS_COLOR[t.status]}`}>
                         {STATUS_OPTIONS.find((o) => o.value === t.status)?.label}
                       </span>
@@ -300,7 +299,7 @@ function TasksPage() {
                         onChange={(e) => updateTask(t.id, { branch: e.target.value })}
                         className="w-40 px-1 py-0.5 bg-transparent border border-transparent hover:border-border focus:border-primary rounded text-[10px] font-mono text-muted-foreground focus:outline-none focus:bg-surface-2"
                         title="Edit branch name"
-                        readOnly={!isSuperAdmin && !isAssigned(t)}
+                        readOnly={!canEditTask(t)}
                       />
                       <button
                         onClick={() => copyBranchName(t)}
@@ -433,7 +432,7 @@ function TasksPage() {
                     onChange={(e) => updateTask(selectedTask.id, { branch: e.target.value })}
                     className="w-56 px-2 py-1 bg-surface-2 border border-border rounded text-[10px] font-mono text-muted-foreground focus:outline-none focus:border-primary"
                     placeholder="feature/..."
-                    readOnly={!isSuperAdmin && !isAssigned(selectedTask)}
+                    readOnly={!canEditTask(selectedTask)}
                   />
                   <button
                     onClick={() => copyBranchName(selectedTask)}
@@ -494,7 +493,7 @@ function TasksPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Status</div>
-                  {isQa || (isDeveloper && !isAssigned(selectedTask)) ? (
+                  {!canEditTask(selectedTask) ? (
                     <span className={`text-xs font-mono font-bold px-2 py-1 rounded ${STATUS_COLOR[selectedTask.status]}`}>
                       {STATUS_OPTIONS.find((o) => o.value === selectedTask.status)?.label}
                     </span>
@@ -512,36 +511,30 @@ function TasksPage() {
                 </div>
                 <div>
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">QA Status</div>
-                  {isDeveloper ? (
-                    <span className={`text-xs font-mono font-bold px-2 py-1 rounded ${QA_COLOR[selectedTask.qaStatus] || "text-muted-foreground"}`}>
-                      {selectedTask.qaStatus === "waiting" ? "Waiting" : selectedTask.qaStatus === "passed" ? "Passed" : selectedTask.qaStatus === "failed" ? "Failed" : "—"}
-                    </span>
-                  ) : (
-                    <select
-                      value={selectedTask.qaStatus}
-                      onChange={(e) => updateTask(selectedTask.id, { qaStatus: e.target.value as QaStatus })}
-                      className={`text-xs font-mono font-bold px-2 py-1 rounded border-none cursor-pointer ${QA_COLOR[selectedTask.qaStatus] || "text-muted-foreground"}`}
-                    >
-                      {QA_OPTIONS.filter((o) => o.value !== "").map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
-                  )}
+                  <select
+                    value={selectedTask.qaStatus}
+                    onChange={(e) => updateTask(selectedTask.id, { qaStatus: e.target.value as QaStatus })}
+                    className={`text-xs font-mono font-bold px-2 py-1 rounded border-none cursor-pointer ${QA_COLOR[selectedTask.qaStatus] || "text-muted-foreground"}`}
+                  >
+                    {QA_OPTIONS.filter((o) => o.value !== "").map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Start Date</div>
-                  <input type="date" value={selectedTask.startDate || ""} onChange={(e) => updateTask(selectedTask.id, { startDate: e.target.value })} className="w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" readOnly={!isSuperAdmin && !isAssigned(selectedTask)} />
+                  <input type="date" value={selectedTask.startDate || ""} onChange={(e) => updateTask(selectedTask.id, { startDate: e.target.value })} className="w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" readOnly={!isSuperAdmin} />
                 </div>
                 <div>
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Due Date</div>
-                  <input type="date" value={selectedTask.dueDate || ""} onChange={(e) => updateTask(selectedTask.id, { dueDate: e.target.value })} className={`w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary ${selectedTask.dueDate && selectedTask.dueDate < new Date().toISOString().slice(0, 10) && selectedTask.status !== "done" ? "text-destructive font-bold" : ""}`} readOnly={!isSuperAdmin && !isAssigned(selectedTask)} />
+                  <input type="date" value={selectedTask.dueDate || ""} onChange={(e) => updateTask(selectedTask.id, { dueDate: e.target.value })} className={`w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary ${selectedTask.dueDate && selectedTask.dueDate < new Date().toISOString().slice(0, 10) && selectedTask.status !== "done" ? "text-destructive font-bold" : ""}`} readOnly={!isSuperAdmin} />
                 </div>
                 <div>
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Completed</div>
-                  <input type="date" value={selectedTask.completedAt || ""} onChange={(e) => updateTask(selectedTask.id, { completedAt: e.target.value })} className="w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" readOnly={!isSuperAdmin && !isAssigned(selectedTask)} />
+                  <input type="date" value={selectedTask.completedAt || ""} onChange={(e) => updateTask(selectedTask.id, { completedAt: e.target.value })} className="w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" readOnly={!isSuperAdmin} />
                 </div>
               </div>
 
@@ -559,7 +552,7 @@ function TasksPage() {
                   onChange={(e) => updateTask(selectedTask.id, { remarks: e.target.value })}
                   placeholder="Add a remark..."
                   className="w-full px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
-                  readOnly={isDeveloper && !isAssigned(selectedTask)}
+                  readOnly={isDeveloper}
                 />
               </div>
             </div>
