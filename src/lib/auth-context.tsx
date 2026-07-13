@@ -34,49 +34,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    let settled = false;
 
-    const safety = setTimeout(() => { if (!cancelled && !settled) { settled = true; setLoading(false); } }, 5000);
-
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (cancelled) return;
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) loadProfile(u.id, u.email ?? "");
+    }).catch(() => {});
+
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
-        try { await loadProfile(u.id, u.email ?? ""); } catch {
-          if (!cancelled) { await supabase.auth.signOut().catch(() => {}); setUser(null); setProfile(null); }
-        }
-      }
-      if (!cancelled && !settled) { settled = true; clearTimeout(safety); setLoading(false); }
-    }).catch(() => {
-      if (!cancelled && !settled) { settled = true; clearTimeout(safety); setLoading(false); }
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (cancelled) return;
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u && event !== "INITIAL_SESSION") {
-        try { await loadProfile(u.id, u.email ?? ""); } catch {
-          if (!cancelled) { await supabase.auth.signOut().catch(() => {}); setUser(null); setProfile(null); }
-        }
-      } else if (!u) {
+        try { await loadProfile(u.id, u.email ?? ""); } catch {}
+      } else {
         setProfile(null);
       }
-      if (event !== "INITIAL_SESSION" && !cancelled && !settled) { settled = true; clearTimeout(safety); setLoading(false); }
     });
 
-    return () => { cancelled = true; clearTimeout(safety); listener?.subscription.unsubscribe(); };
+    setLoading(false);
+
+    return () => { cancelled = true; listener?.subscription.unsubscribe(); };
   }, []);
 
   async function loadProfile(userId: string, email: string) {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
       .single();
-
-    if (error && (error as any)?.code !== "PGRST116") throw error;
 
     const isSuper = SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
 
