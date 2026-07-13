@@ -117,7 +117,7 @@ function AdminPage() {
 
   if (!isSuperAdmin) {
     return (
-      <div className="p-6 max-w-3xl">
+      <div className="flex-1 overflow-y-auto p-6 max-w-3xl">
         <PageHeader
           crumbs={[{ label: "Admin" }]}
           title="Admin"
@@ -131,7 +131,7 @@ function AdminPage() {
   }
 
   return (
-    <div className="p-6 max-w-3xl">
+    <div className="flex-1 overflow-y-auto p-6 max-w-3xl">
       <PageHeader
         crumbs={[{ label: "Admin" }]}
         title="Admin"
