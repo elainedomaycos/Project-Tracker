@@ -14,7 +14,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, resetPassword, user } = useAuth();
 
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -22,6 +22,7 @@ function AuthPage() {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   if (user) {
     navigate({ to: "/" });
@@ -43,6 +44,16 @@ function AuthPage() {
       if (msg) { setError(msg); return; }
       setSuccess("Account created! Check your email to confirm, then sign in.");
     }
+  }
+
+  async function handleReset() {
+    if (!email.trim()) { setError("Enter your email first"); return; }
+    setResetting(true);
+    setError(null);
+    setSuccess(null);
+    const msg = await resetPassword(email);
+    if (msg) { setError(msg); } else { setSuccess("Password reset link sent! Check your email."); }
+    setResetting(false);
   }
 
   return (
@@ -96,6 +107,19 @@ function AuthPage() {
               required
             />
           </div>
+
+          {mode === "login" && (
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={handleReset}
+                disabled={resetting}
+                className="text-xs text-muted-foreground hover:text-foreground underline"
+              >
+                {resetting ? "Sending..." : "Forgot password?"}
+              </button>
+            </div>
+          )}
 
           {error && (
             <div className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-md px-3 py-2">

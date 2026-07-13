@@ -20,6 +20,7 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string, name: string) => Promise<string | null>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<string | null>;
   isSuperAdmin: boolean;
   isDeveloper: boolean;
   isQa: boolean;
@@ -43,8 +44,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const safetyTimer = setTimeout(finishLoading, 8000);
-
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (cancelled) return;
       const u = session?.user ?? null;
@@ -52,11 +51,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (u) {
         return loadProfile(u.id, u.email ?? "").catch(() => {});
       }
-    }).then(() => { clearTimeout(safetyTimer); finishLoading(); }).catch(() => { clearTimeout(safetyTimer); finishLoading(); });
+    }).then(finishLoading).catch(finishLoading);
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled) return;
-      clearTimeout(safetyTimer);
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
@@ -67,12 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       finishLoading();
     });
 
-    return () => {
-      cancelled = true;
-      clearTimeout(safetyTimer);
-      listener?.subscription.unsubscribe();
-      finishLoading();
-    };
+    return () => { cancelled = true; listener?.subscription.unsubscribe(); finishLoading(); };
   }, []);
 
   async function loadProfile(userId: string, email: string) {
@@ -148,9 +141,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   }
 
+  async function resetPassword(email: string): Promise<string | null> {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth`,
+    });
+    return error?.message ?? null;
+  }
+
   const value: AuthContextType = {
     user, profile, loading,
-    signIn, signUp, signOut,
+    signIn, signUp, signOut, resetPassword,
     isSuperAdmin: profile?.role === "super_admin",
     isDeveloper: profile?.role === "developer",
     isQa: profile?.role === "qa",
