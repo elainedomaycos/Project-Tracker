@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/console";
 import { useState } from "react";
 import { useProject, type TaskStatus } from "@/lib/project-context";
+import { useAuth } from "@/lib/auth-context";
 import { CheckCircle2, Clock, ArrowRight, Users, Plus, X } from "lucide-react";
 
 export const Route = createFileRoute("/developer")({
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/developer")({
 
 function DeveloperPage() {
   const { tasks, currentProject, developers, qaUsers, updateTask, addDeveloper, removeDeveloper, addQaUser, removeQaUser } = useProject();
+  const { isSuperAdmin, isQa } = useAuth();
   const [filterDev, setFilterDev] = useState("all");
   const [showUsers, setShowUsers] = useState(false);
   const [newDev, setNewDev] = useState("");
@@ -36,13 +38,15 @@ function DeveloperPage() {
         crumbs={[{ label: "Task Tracker" }, { label: "Developer" }]}
         status={{ label: `${activeTasks.length} active tasks`, tone: "info" }}
         actions={
-          <button
-            onClick={() => setShowUsers(true)}
-            className="px-3 py-1.5 bg-surface-2 border border-border text-xs font-medium rounded hover:bg-surface-2/80 flex items-center gap-1.5"
-          >
-            <Users className="size-3.5" />
-            Manage Users
-          </button>
+          !isQa && (
+            <button
+              onClick={() => setShowUsers(true)}
+              className="px-3 py-1.5 bg-surface-2 border border-border text-xs font-medium rounded hover:bg-surface-2/80 flex items-center gap-1.5"
+            >
+              <Users className="size-3.5" />
+              Manage Users
+            </button>
+          )
         }
       />
 
@@ -89,31 +93,39 @@ function DeveloperPage() {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    {t.status === "pending" && (
-                      <button
-                        onClick={() => handleStatusChange(t.id, "doing")}
-                        className="px-3 py-1.5 bg-primary text-primary-foreground text-[10px] font-bold rounded hover:brightness-110 flex items-center gap-1"
-                      >
-                        <Clock className="size-3" />
-                        Start
-                      </button>
-                    )}
-                    {t.status === "doing" && (
-                      <button
-                        onClick={() => handleStatusChange(t.id, "qa")}
-                        className="px-3 py-1.5 bg-info text-white text-[10px] font-bold rounded hover:brightness-110 flex items-center gap-1"
-                      >
-                        <ArrowRight className="size-3" />
-                        Move to QA
-                      </button>
-                    )}
-                    {t.status === "qa" && (
-                      <span className="px-2 py-1 text-[10px] font-mono text-info bg-info/10 rounded">In QA</span>
-                    )}
-                    {t.status === "done" && (
-                      <span className="flex items-center gap-1 text-[10px] font-mono text-success">
-                        <CheckCircle2 className="size-3" /> Done
+                    {isQa ? (
+                      <span className="px-2 py-1 text-[10px] font-mono text-muted-foreground bg-surface-2 rounded">
+                        {t.status === "pending" ? "Pending" : t.status === "doing" ? "In Progress" : t.status === "qa" ? "In QA" : "Done"}
                       </span>
+                    ) : (
+                      <>
+                        {t.status === "pending" && (
+                          <button
+                            onClick={() => handleStatusChange(t.id, "doing")}
+                            className="px-3 py-1.5 bg-primary text-primary-foreground text-[10px] font-bold rounded hover:brightness-110 flex items-center gap-1"
+                          >
+                            <Clock className="size-3" />
+                            Start
+                          </button>
+                        )}
+                        {t.status === "doing" && (
+                          <button
+                            onClick={() => handleStatusChange(t.id, "qa")}
+                            className="px-3 py-1.5 bg-info text-white text-[10px] font-bold rounded hover:brightness-110 flex items-center gap-1"
+                          >
+                            <ArrowRight className="size-3" />
+                            Move to QA
+                          </button>
+                        )}
+                        {t.status === "qa" && (
+                          <span className="px-2 py-1 text-[10px] font-mono text-info bg-info/10 rounded">In QA</span>
+                        )}
+                        {t.status === "done" && (
+                          <span className="flex items-center gap-1 text-[10px] font-mono text-success">
+                            <CheckCircle2 className="size-3" /> Done
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

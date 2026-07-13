@@ -1,0 +1,125 @@
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { User } from "@supabase/supabase-js";
+
+export type UserRole = "super_admin" | "developer" | "qa";
+
+export type Profile = {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+};
+
+const SUPER_ADMIN_EMAILS = ["elainedomaycos@gmail.com"];
+
+type AuthContextType = {
+  user: User | null;
+  profile: Profile | null;
+  loading: boolean;
+  signIn: (email: string, password: string) => Promise<string | null>;
+  signUp: (email: string, password: string, name: string) => Promise<string | null>;
+  signOut: () => Promise<void>;
+  isSuperAdmin: boolean;
+  isDeveloper: boolean;
+  isQa: boolean;
+};
+
+const AuthContext = createContext<AuthContextType | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) {
+        await loadProfile(u.id, u.email ?? "");
+      } else {
+        setProfile(null);
+      }
+      if (event !== "INITIAL_SESSION") setLoading(false);
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) {
+        loadProfile(u.id, u.email ?? "").then(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => listener?.subscription.unsubscribe();
+  }, []);
+
+  async function loadProfile(userId: string, email: string) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .single();
+
+    if (data) {
+      setProfile(data as Profile);
+    } else {
+      const isSuper = SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
+      const newProfile: Profile = {
+        id: userId,
+        email,
+        name: "",
+        role: isSuper ? "super_admin" : "developer",
+      };
+      await supabase.from("profiles").insert(newProfile);
+      setProfile(newProfile);
+    }
+  }
+
+  async function signIn(email: string, password: string): Promise<string | null> {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return error?.message ?? null;
+  }
+
+  async function signUp(email: string, password: string, name: string): Promise<string | null> {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) return error.message;
+    if (data.user) {
+      const isSuper = SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
+      const newProfile: Profile = {
+        id: data.user.id,
+        email,
+        name,
+        role: isSuper ? "super_admin" : "developer",
+      };
+      await supabase.from("profiles").upsert(newProfile);
+      setProfile(newProfile);
+    }
+    return null;
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
+  }
+
+  const value: AuthContextType = {
+    user, profile, loading,
+    signIn, signUp, signOut,
+    isSuperAdmin: profile?.role === "super_admin",
+    isDeveloper: profile?.role === "developer",
+    isQa: profile?.role === "qa",
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
+}

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/console";
 import { useState } from "react";
 import { useProject, type Task, type TaskStatus, type QaStatus } from "@/lib/project-context";
+import { useAuth } from "@/lib/auth-context";
 import { Plus, X, Search, GitBranch, Copy, CheckCircle2, Clock, AlertTriangle, FileCheck, Users, Puzzle } from "lucide-react";
 
 export const Route = createFileRoute("/tasks")({
@@ -47,6 +48,7 @@ const FIELD_OPTIONS = [
 
 function TasksPage() {
   const { projects, currentProject, getProjectTasks, getAnalytics, addTask, updateTask, removeTask, nextTaskId, developers } = useProject();
+  const { isSuperAdmin, isDeveloper, isQa } = useAuth();
   const [showNewModal, setShowNewModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [search, setSearch] = useState("");
@@ -137,13 +139,15 @@ function TasksPage() {
               <option value="qa">QA</option>
               <option value="done">Done</option>
             </select>
-            <button
-              onClick={() => setShowNewModal(true)}
-              className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 flex items-center gap-1.5"
-            >
-              <Plus className="size-3.5" />
-              New Task
-            </button>
+            {isSuperAdmin && (
+              <button
+                onClick={() => setShowNewModal(true)}
+                className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 flex items-center gap-1.5"
+              >
+                <Plus className="size-3.5" />
+                New Task
+              </button>
+            )}
           </div>
         }
       />
@@ -246,21 +250,40 @@ function TasksPage() {
                     </div>
                   </Td>
                   <Td>
-                    <select
-                      value={t.status}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => updateTask(t.id, { status: e.target.value as TaskStatus })}
-                      className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border-none cursor-pointer ${STATUS_COLOR[t.status]}`}
-                    >
-                      {STATUS_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
+                    {isQa ? (
+                      <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${STATUS_COLOR[t.status]}`}>
+                        {STATUS_OPTIONS.find((o) => o.value === t.status)?.label}
+                      </span>
+                    ) : (
+                      <select
+                        value={t.status}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => updateTask(t.id, { status: e.target.value as TaskStatus })}
+                        className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border-none cursor-pointer ${STATUS_COLOR[t.status]}`}
+                      >
+                        {STATUS_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+                    )}
                   </Td>
                   <Td>
-                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${QA_COLOR[t.qaStatus] || "text-muted-foreground"}`}>
-                      {t.qaStatus === "waiting" ? "Waiting" : t.qaStatus === "passed" ? "Pass" : t.qaStatus === "failed" ? "Fail" : "—"}
-                    </span>
+                    {isDeveloper ? (
+                      <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${QA_COLOR[t.qaStatus] || "text-muted-foreground"}`}>
+                        {t.qaStatus === "waiting" ? "Waiting" : t.qaStatus === "passed" ? "Pass" : t.qaStatus === "failed" ? "Fail" : "—"}
+                      </span>
+                    ) : (
+                      <select
+                        value={t.qaStatus}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => updateTask(t.id, { qaStatus: e.target.value as QaStatus })}
+                        className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border-none cursor-pointer ${QA_COLOR[t.qaStatus] || "text-muted-foreground"}`}
+                      >
+                        {QA_OPTIONS.filter((o) => o.value !== "").map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+                    )}
                   </Td>
                   <Td>
                     <span className={`text-[10px] font-mono ${t.dueDate && t.dueDate < new Date().toISOString().slice(0, 10) && t.status !== "done" ? "text-destructive" : "text-muted-foreground"}`}>
@@ -275,6 +298,7 @@ function TasksPage() {
                         onChange={(e) => updateTask(t.id, { branch: e.target.value })}
                         className="w-40 px-1 py-0.5 bg-transparent border border-transparent hover:border-border focus:border-primary rounded text-[10px] font-mono text-muted-foreground focus:outline-none focus:bg-surface-2"
                         title="Edit branch name"
+                        readOnly={!isSuperAdmin}
                       />
                       <button
                         onClick={() => copyBranchName(t)}
@@ -407,6 +431,7 @@ function TasksPage() {
                     onChange={(e) => updateTask(selectedTask.id, { branch: e.target.value })}
                     className="w-56 px-2 py-1 bg-surface-2 border border-border rounded text-[10px] font-mono text-muted-foreground focus:outline-none focus:border-primary"
                     placeholder="feature/..."
+                    readOnly={!isSuperAdmin}
                   />
                   <button
                     onClick={() => copyBranchName(selectedTask)}
@@ -494,15 +519,15 @@ function TasksPage() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Start Date</div>
-                  <input type="date" value={selectedTask.startDate || ""} onChange={(e) => updateTask(selectedTask.id, { startDate: e.target.value })} className="w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" />
+                  <input type="date" value={selectedTask.startDate || ""} onChange={(e) => updateTask(selectedTask.id, { startDate: e.target.value })} className="w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" readOnly={!isSuperAdmin} />
                 </div>
                 <div>
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Due Date</div>
-                  <input type="date" value={selectedTask.dueDate || ""} onChange={(e) => updateTask(selectedTask.id, { dueDate: e.target.value })} className={`w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary ${selectedTask.dueDate && selectedTask.dueDate < new Date().toISOString().slice(0, 10) && selectedTask.status !== "done" ? "text-destructive font-bold" : ""}`} />
+                  <input type="date" value={selectedTask.dueDate || ""} onChange={(e) => updateTask(selectedTask.id, { dueDate: e.target.value })} className={`w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary ${selectedTask.dueDate && selectedTask.dueDate < new Date().toISOString().slice(0, 10) && selectedTask.status !== "done" ? "text-destructive font-bold" : ""}`} readOnly={!isSuperAdmin} />
                 </div>
                 <div>
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Completed</div>
-                  <input type="date" value={selectedTask.completedAt || ""} onChange={(e) => updateTask(selectedTask.id, { completedAt: e.target.value })} className="w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" />
+                  <input type="date" value={selectedTask.completedAt || ""} onChange={(e) => updateTask(selectedTask.id, { completedAt: e.target.value })} className="w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" readOnly={!isSuperAdmin} />
                 </div>
               </div>
 
@@ -520,16 +545,19 @@ function TasksPage() {
                   onChange={(e) => updateTask(selectedTask.id, { remarks: e.target.value })}
                   placeholder="Add a remark..."
                   className="w-full px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                  readOnly={isDeveloper}
                 />
               </div>
             </div>
             <div className="flex justify-between px-5 py-4 border-t border-border">
-              <button
-                onClick={() => { removeTask(selectedTask.id); setSelectedTask(null); }}
-                className="px-3 py-1.5 text-xs font-medium rounded border border-destructive/30 text-destructive hover:bg-destructive/10"
-              >
-                Delete Task
-              </button>
+              {isSuperAdmin && (
+                <button
+                  onClick={() => { removeTask(selectedTask.id); setSelectedTask(null); }}
+                  className="px-3 py-1.5 text-xs font-medium rounded border border-destructive/30 text-destructive hover:bg-destructive/10"
+                >
+                  Delete Task
+                </button>
+              )}
               <button onClick={() => setSelectedTask(null)} className="px-4 py-2 text-xs font-medium rounded border border-border hover:bg-surface-2">Close</button>
             </div>
           </div>

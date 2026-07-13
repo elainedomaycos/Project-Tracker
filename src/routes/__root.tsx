@@ -20,11 +20,15 @@ import {
   BarChart3,
   ChevronDown,
   X,
+  Shield,
+  LogOut,
+  User as UserIcon,
 } from "lucide-react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ProjectProvider, useProject, type AppView } from "@/lib/project-context";
+import { AuthProvider, useAuth } from "@/lib/auth-context";
 
 function NotFoundComponent() {
   return (
@@ -122,21 +126,22 @@ type NavItem = {
   to: string;
   label: string;
   icon: typeof LayoutDashboard;
-  roles: AppView[];
+  roles: string[];
 };
 
 const NAV_ITEMS: readonly NavItem[] = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["pm", "developer", "qa", "client"] },
-  { to: "/tasks", label: "Tasks", icon: ListChecks, roles: ["pm", "developer", "qa"] },
-  { to: "/developer", label: "Developer", icon: Code2, roles: ["developer", "pm"] },
-  { to: "/qa", label: "QA Review", icon: FlaskConical, roles: ["qa", "pm"] },
-  { to: "/client", label: "Client Portal", icon: ExternalLink, roles: ["pm", "client"] },
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin", "developer", "qa"] },
+  { to: "/tasks", label: "Tasks", icon: ListChecks, roles: ["super_admin", "developer", "qa"] },
+  { to: "/developer", label: "Developer", icon: Code2, roles: ["super_admin", "developer"] },
+  { to: "/qa", label: "QA Review", icon: FlaskConical, roles: ["super_admin", "qa"] },
+  { to: "/client", label: "Client Portal", icon: ExternalLink, roles: ["super_admin"] },
 ];
 
 const EXTRA_NAV: readonly NavItem[] = [
-  { to: "/reports", label: "Reports", icon: BarChart3, roles: ["pm"] },
-  { to: "/ai", label: "AI Tools", icon: Sparkles, roles: ["pm", "developer", "qa"] },
-  { to: "/credentials", label: "Credentials", icon: Key, roles: ["pm"] },
+  { to: "/reports", label: "Reports", icon: BarChart3, roles: ["super_admin"] },
+  { to: "/ai", label: "AI Tools", icon: Sparkles, roles: ["super_admin", "developer", "qa"] },
+  { to: "/credentials", label: "Credentials", icon: Key, roles: ["super_admin", "developer", "qa"] },
+  { to: "/admin", label: "Admin", icon: Shield, roles: ["super_admin"] },
 ];
 
 function RootComponent() {
@@ -145,12 +150,50 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ProjectProvider><AppShell pathname={pathname} queryClient={queryClient} /></ProjectProvider>
+      <AuthProvider>
+        <ProjectProvider>
+          <AuthGate>
+            <AppShell pathname={pathname} queryClient={queryClient} />
+          </AuthGate>
+        </ProjectProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
 
+function AuthGate({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isAuthPage = pathname === "/auth";
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-sm text-muted-foreground animate-pulse">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user && !isAuthPage) {
+    router.navigate({ to: "/auth" });
+    return null;
+  }
+
+  if (user && isAuthPage) {
+    return null;
+  }
+
+  return <>{children}</>;
+}
+
 function AppShell({ pathname, queryClient }: { pathname: string; queryClient: QueryClient }) {
+  const { profile, signOut, isSuperAdmin } = useAuth();
+  const role = profile?.role ?? "developer";
+
+  function canSee(item: NavItem) {
+    return item.roles.includes(role);
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
@@ -167,12 +210,14 @@ function AppShell({ pathname, queryClient }: { pathname: string; queryClient: Qu
           </div>
         </div>
 
-        <div className="px-3 pt-3 pb-1">
-          <ProjectSelector />
-        </div>
+        {isSuperAdmin && (
+          <div className="px-3 pt-3 pb-1">
+            <ProjectSelector />
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto py-4 px-2 space-y-1 no-scrollbar">
-          {NAV_ITEMS.map((item) => {
+          {NAV_ITEMS.filter(canSee).map((item) => {
             const active = pathname === item.to;
             const Icon = item.icon;
             return (
@@ -192,36 +237,53 @@ function AppShell({ pathname, queryClient }: { pathname: string; queryClient: Qu
             );
           })}
 
-          <div className="pt-4 mt-4 border-t border-border">
-            <div className="px-3 pb-2 text-[9px] font-mono uppercase text-muted-foreground tracking-wider">
-              Advanced
+          {EXTRA_NAV.filter(canSee).length > 0 && (
+            <div className="pt-4 mt-4 border-t border-border">
+              <div className="px-3 pb-2 text-[9px] font-mono uppercase text-muted-foreground tracking-wider">
+                Advanced
+              </div>
+              {EXTRA_NAV.filter(canSee).map((item) => {
+                const active = pathname === item.to;
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={[
+                      "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                      active
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
+                    ].join(" ")}
+                  >
+                    <Icon className="size-4 shrink-0" strokeWidth={1.75} />
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                );
+              })}
             </div>
-            {EXTRA_NAV.map((item) => {
-              const active = pathname === item.to;
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={[
-                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                    active
-                      ? "bg-primary/10 text-primary font-medium"
-                      : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
-                  ].join(" ")}
-                >
-                  <Icon className="size-4 shrink-0" strokeWidth={1.75} />
-                  <span className="truncate">{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
+          )}
         </div>
 
-        <div className="p-3 border-t border-border">
-          <div className="text-[9px] font-mono text-muted-foreground text-center">
-            Task Tracker v0.2 · Data saved in browser
-          </div>
+        <div className="p-3 border-t border-border space-y-2">
+          {profile && (
+            <div className="flex items-center gap-2 px-2">
+              <div className="size-7 rounded-full bg-surface-2 border border-border grid place-items-center text-[9px] font-bold shrink-0">
+                {profile.name?.slice(0, 2).toUpperCase() || profile.email?.slice(0, 2).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-medium truncate">{profile.name || "User"}</div>
+                <div className="text-[9px] font-mono text-muted-foreground capitalize truncate">{profile.role.replace("_", " ")}</div>
+              </div>
+            </div>
+          )}
+          <button
+            onClick={signOut}
+            className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+          >
+            <LogOut className="size-3.5" />
+            Sign Out
+          </button>
         </div>
       </nav>
 
@@ -320,5 +382,3 @@ function ProjectSelector() {
     </div>
   );
 }
-
-

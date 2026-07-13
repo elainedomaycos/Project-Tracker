@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/console";
 import { useProject, type QaStatus } from "@/lib/project-context";
+import { useAuth } from "@/lib/auth-context";
 import { CheckCircle2, XCircle, AlertTriangle, User } from "lucide-react";
 
 export const Route = createFileRoute("/qa")({
@@ -14,7 +15,9 @@ export const Route = createFileRoute("/qa")({
 });
 
 function QaPage() {
-  const { tasks, updateTask, getAnalytics } = useProject();
+  const { tasks, updateTask } = useProject();
+  const { isSuperAdmin, isQa, isDeveloper } = useAuth();
+  const canReview = isSuperAdmin || isQa;
   const qaTasks = tasks.filter((t) => t.status === "qa" || t.qaStatus === "failed");
   const allAnalytics = { qaPassed: tasks.filter((t) => t.qaStatus === "passed").length, qaFailed: tasks.filter((t) => t.qaStatus === "failed").length, qaWaiting: tasks.filter((t) => t.status === "qa").length };
 
@@ -99,22 +102,30 @@ function QaPage() {
                   )}
 
                   <div className="flex items-center gap-2">
-                    {t.qaStatus !== "failed" && (
-                      <button
-                        onClick={() => handleFail(t.id)}
-                        className="px-4 py-2 bg-destructive/10 text-destructive text-xs font-bold rounded hover:bg-destructive/20 flex items-center gap-1.5"
-                      >
-                        <XCircle className="size-3.5" />
-                        Fail — Back to Dev
-                      </button>
+                    {canReview ? (
+                      <>
+                        {t.qaStatus !== "failed" && (
+                          <button
+                            onClick={() => handleFail(t.id)}
+                            className="px-4 py-2 bg-destructive/10 text-destructive text-xs font-bold rounded hover:bg-destructive/20 flex items-center gap-1.5"
+                          >
+                            <XCircle className="size-3.5" />
+                            Fail — Back to Dev
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handlePass(t.id)}
+                          className="px-4 py-2 bg-success/10 text-success text-xs font-bold rounded hover:bg-success/20 flex items-center gap-1.5"
+                        >
+                          <CheckCircle2 className="size-3.5" />
+                          Pass — Done
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        {t.qaStatus === "waiting" ? "Waiting for QA" : t.qaStatus === "passed" ? "Passed" : t.qaStatus === "failed" ? "Failed — Rework" : "—"}
+                      </span>
                     )}
-                    <button
-                      onClick={() => handlePass(t.id)}
-                      className="px-4 py-2 bg-success/10 text-success text-xs font-bold rounded hover:bg-success/20 flex items-center gap-1.5"
-                    >
-                      <CheckCircle2 className="size-3.5" />
-                      Pass — Done
-                    </button>
                   </div>
                 </div>
               ))}
