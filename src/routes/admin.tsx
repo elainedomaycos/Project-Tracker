@@ -51,6 +51,9 @@ function AdminPage() {
   }
 
   async function updateRole(userId: string, newRole: UserRole) {
+    const user = users.find((u) => u.id === userId);
+    if (!user) return;
+
     const { error } = await supabase
       .from("profiles")
       .update({ role: newRole })
@@ -58,6 +61,8 @@ function AdminPage() {
 
     if (!error) {
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
+      if (newRole === "developer" && user.name) addDeveloper(user.name);
+      if (newRole === "qa" && user.name) addQaUser(user.name);
     }
   }
 

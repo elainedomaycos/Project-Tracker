@@ -135,6 +135,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const newProfile: Profile = { id: data.user.id, email, name: profileName, role };
       await supabase.from("profiles").upsert(newProfile);
+      if (role === "developer" || role === "qa") {
+        const key = role === "developer" ? "developers" : "qa_users";
+        const { data: existing } = await supabase.from("settings").select("value").eq("key", key).maybeSingle();
+        const list: string[] = existing?.value ?? [];
+        if (!list.includes(profileName)) {
+          await supabase.from("settings").upsert({ key, value: [...list, profileName] });
+        }
+      }
       setProfile(newProfile);
     }
     return null;
