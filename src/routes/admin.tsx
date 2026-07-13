@@ -119,7 +119,7 @@ function AdminPage() {
     return (
       <div className="p-6 max-w-3xl">
         <PageHeader
-          breadcrumbs={[{ label: "Admin" }]}
+          crumbs={[{ label: "Admin" }]}
           title="Admin"
           description="Manage users, invitations, and roles"
         />
@@ -133,7 +133,7 @@ function AdminPage() {
   return (
     <div className="p-6 max-w-3xl">
       <PageHeader
-        breadcrumbs={[{ label: "Admin" }]}
+        crumbs={[{ label: "Admin" }]}
         title="Admin"
         description="Manage users, invitations, and roles"
       />
