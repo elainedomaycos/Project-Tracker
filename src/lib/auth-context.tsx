@@ -78,12 +78,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(data as Profile);
       }
     } else {
-      const newProfile: Profile = {
-        id: userId,
-        email,
-        name: "",
-        role: isSuper ? "super_admin" : "developer",
-      };
+      let role: UserRole = isSuper ? "super_admin" : "developer";
+      if (!isSuper) {
+        const { data: invite } = await supabase
+          .from("invitations")
+          .select("role")
+          .eq("email", email.toLowerCase())
+          .maybeSingle();
+        if (invite) role = invite.role as UserRole;
+      }
+      const newProfile: Profile = { id: userId, email, name: "", role };
       await supabase.from("profiles").insert(newProfile);
       setProfile(newProfile);
     }
@@ -99,12 +103,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) return error.message;
     if (data.user) {
       const isSuper = SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
-      const newProfile: Profile = {
-        id: data.user.id,
-        email,
-        name,
-        role: isSuper ? "super_admin" : "developer",
-      };
+      let role: UserRole = isSuper ? "super_admin" : "developer";
+      if (!isSuper) {
+        const { data: invite } = await supabase
+          .from("invitations")
+          .select("role")
+          .eq("email", email.toLowerCase())
+          .maybeSingle();
+        if (invite) role = invite.role as UserRole;
+      }
+      const newProfile: Profile = { id: data.user.id, email, name, role };
       await supabase.from("profiles").upsert(newProfile);
       setProfile(newProfile);
     }
