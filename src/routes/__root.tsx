@@ -132,16 +132,16 @@ type NavItem = {
 const NAV_ITEMS: readonly NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin", "developer", "qa"] },
   { to: "/tasks", label: "Tasks", icon: ListChecks, roles: ["super_admin", "developer", "qa"] },
-  { to: "/developer", label: "Developer", icon: Code2, roles: ["super_admin", "developer"] },
-  { to: "/qa", label: "QA Review", icon: FlaskConical, roles: ["super_admin", "qa"] },
-  { to: "/client", label: "Client Portal", icon: ExternalLink, roles: ["super_admin"] },
+  { to: "/developer", label: "Developer", icon: Code2, roles: ["super_admin", "developer", "qa"] },
+  { to: "/qa", label: "QA Review", icon: FlaskConical, roles: ["super_admin", "developer", "qa"] },
+  { to: "/client", label: "Client Portal", icon: ExternalLink, roles: ["super_admin", "developer", "qa"] },
 ];
 
 const EXTRA_NAV: readonly NavItem[] = [
-  { to: "/reports", label: "Reports", icon: BarChart3, roles: ["super_admin"] },
+  { to: "/reports", label: "Reports", icon: BarChart3, roles: ["super_admin", "developer", "qa"] },
   { to: "/ai", label: "AI Tools", icon: Sparkles, roles: ["super_admin", "developer", "qa"] },
   { to: "/credentials", label: "Credentials", icon: Key, roles: ["super_admin", "developer", "qa"] },
-  { to: "/admin", label: "Admin", icon: Shield, roles: ["super_admin"] },
+  { to: "/admin", label: "Admin", icon: Shield, roles: ["super_admin", "developer", "qa"] },
 ];
 
 function RootComponent() {
@@ -212,11 +212,9 @@ function AppShell({ pathname, queryClient }: { pathname: string; queryClient: Qu
           </div>
         </div>
 
-        {isSuperAdmin && (
-          <div className="px-3 pt-3 pb-1">
-            <ProjectSelector />
-          </div>
-        )}
+        <div className="px-3 pt-3 pb-1">
+          <ProjectSelector />
+        </div>
 
         <div className="flex-1 overflow-y-auto py-4 px-2 space-y-1 no-scrollbar">
           {NAV_ITEMS.filter(canSee).map((item) => {
@@ -298,6 +296,7 @@ function AppShell({ pathname, queryClient }: { pathname: string; queryClient: Qu
 
 function ProjectSelector() {
   const { projects, currentProject, setCurrentProject, addProject, removeProject } = useProject();
+  const { isSuperAdmin } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: "", clientName: "", endUsers: "", modules: "" });
 
@@ -329,22 +328,24 @@ function ProjectSelector() {
         </select>
         <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 size-3 text-muted-foreground pointer-events-none" />
       </div>
-      <div className="flex gap-1">
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex-1 px-2 py-1 rounded text-[10px] font-mono uppercase text-primary border border-primary/30 hover:bg-primary/5 transition-colors"
-        >
-          + New Project
-        </button>
-        {projects.length > 1 && currentProject && (
+      {isSuperAdmin && (
+        <div className="flex gap-1">
           <button
-            onClick={() => removeProject(currentProject.id)}
-            className="px-2 py-1 rounded text-[10px] font-mono uppercase text-destructive border border-destructive/30 hover:bg-destructive/5 transition-colors"
+            onClick={() => setShowModal(true)}
+            className="flex-1 px-2 py-1 rounded text-[10px] font-mono uppercase text-primary border border-primary/30 hover:bg-primary/5 transition-colors"
           >
-            Delete
+            + New Project
           </button>
-        )}
-      </div>
+          {projects.length > 1 && currentProject && (
+            <button
+              onClick={() => removeProject(currentProject.id)}
+              className="px-2 py-1 rounded text-[10px] font-mono uppercase text-destructive border border-destructive/30 hover:bg-destructive/5 transition-colors"
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40" onClick={() => setShowModal(false)}>

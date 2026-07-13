@@ -32,7 +32,6 @@ function AdminPage() {
   const [newQa, setNewQa] = useState("");
 
   useEffect(() => {
-    if (!isSuperAdmin) { navigate({ to: "/" }); return; }
     loadInvitations();
     loadSettings();
   }, []);
@@ -113,7 +112,20 @@ function AdminPage() {
     updateSettings("qa_users", updated);
   }
 
-  if (!isSuperAdmin) return null;
+  if (!isSuperAdmin) {
+    return (
+      <div className="p-6 max-w-3xl">
+        <PageHeader
+          breadcrumbs={[{ label: "Admin" }]}
+          title="Admin"
+          description="Manage users, invitations, and roles"
+        />
+        <div className="mt-8 text-center py-12 bg-card border border-border rounded-lg">
+          <p className="text-sm text-muted-foreground">You don't have permission to manage users.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-3xl">
