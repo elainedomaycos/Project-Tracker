@@ -17,6 +17,7 @@ type AuthContextType = {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
+  recoveryMode: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string, name: string) => Promise<string | null>;
   signOut: () => Promise<void>;
@@ -32,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recoveryMode, setRecoveryMode] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +57,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled) return;
+      if (event === "PASSWORD_RECOVERY") {
+        setRecoveryMode(true);
+      }
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
@@ -149,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const value: AuthContextType = {
-    user, profile, loading,
+    user, profile, loading, recoveryMode,
     signIn, signUp, signOut, resetPassword,
     isSuperAdmin: profile?.role === "super_admin",
     isDeveloper: profile?.role === "developer",

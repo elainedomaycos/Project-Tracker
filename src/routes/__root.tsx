@@ -162,7 +162,7 @@ function RootComponent() {
 }
 
 function AuthGate({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, recoveryMode } = useAuth();
   const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isAuthPage = pathname === "/auth";
@@ -180,7 +180,7 @@ function AuthGate({ children }: { children: ReactNode }) {
     return null;
   }
 
-  if (user && isAuthPage) {
+  if (user && isAuthPage && !recoveryMode) {
     router.navigate({ to: "/" });
     return null;
   }

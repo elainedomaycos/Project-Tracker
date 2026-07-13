@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { signIn, signUp, resetPassword, user } = useAuth();
+  const { signIn, signUp, resetPassword, user, recoveryMode } = useAuth();
 
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -24,19 +24,10 @@ function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
-  const [recovery, setRecovery] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [updating, setUpdating] = useState(false);
 
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash.includes("type=recovery")) {
-      setRecovery(true);
-      window.location.hash = "";
-    }
-  }, []);
-
-  if (user && !recovery) {
+  if (user && !recoveryMode) {
     navigate({ to: "/" });
     return null;
   }
@@ -75,11 +66,14 @@ function AuthPage() {
     setError(null);
     setSuccess(null);
     const { error: err } = await supabase.auth.updateUser({ password: newPassword });
-    if (err) { setError(err.message); } else { setSuccess("Password updated! You can now sign in."); setRecovery(false); }
+    if (err) { setError(err.message); } else {
+      setSuccess("Password updated! You can now sign in.");
+      await supabase.auth.signOut();
+    }
     setUpdating(false);
   }
 
-  if (recovery) {
+  if (recoveryMode) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="w-full max-w-sm">
@@ -124,7 +118,7 @@ function AuthPage() {
           {success && (
             <div className="mt-6 text-center">
               <button
-                onClick={() => { setRecovery(false); setMode("login"); }}
+                onClick={() => { setMode("login"); }}
                 className="text-xs text-muted-foreground hover:text-foreground underline"
               >
                 Back to sign in
