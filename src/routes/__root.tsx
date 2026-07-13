@@ -22,7 +22,6 @@ import {
   X,
   Shield,
   LogOut,
-  Trash2,
   User as UserIcon,
 } from "lucide-react";
 
@@ -139,7 +138,6 @@ const NAV_ITEMS: readonly NavItem[] = [
 ];
 
 const EXTRA_NAV: readonly NavItem[] = [
-  { to: "/reports", label: "Reports", icon: BarChart3, roles: ["super_admin", "developer", "qa"] },
   { to: "/ai", label: "AI Tools", icon: Sparkles, roles: ["super_admin", "developer", "qa"] },
   { to: "/credentials", label: "Credentials", icon: Key, roles: ["super_admin", "developer", "qa"] },
   { to: "/admin", label: "Admin", icon: Shield, roles: ["super_admin", "developer", "qa"] },
@@ -278,13 +276,6 @@ function AppShell({ pathname, queryClient }: { pathname: string; queryClient: Qu
               </div>
             </div>
           )}
-          <button
-            onClick={() => { localStorage.clear(); location.reload(); }}
-            className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
-          >
-            <Trash2 className="size-3.5" />
-            Clear Storage & Reload
-          </button>
           <button
             onClick={signOut}
             className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
