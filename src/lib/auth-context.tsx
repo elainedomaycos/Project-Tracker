@@ -11,7 +11,7 @@ export type Profile = {
   role: UserRole;
 };
 
-const SUPER_ADMIN_EMAILS = ["elainedomaycos@gmail.com"];
+const SUPER_ADMIN_EMAILS = ["edomaycos@gmail.com", "abellajoshua18@gmail.com"];
 
 type AuthContextType = {
   user: User | null;
@@ -64,10 +64,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("id", userId)
       .single();
 
+    const isSuper = SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
+
     if (data) {
-      setProfile(data as Profile);
+      if (isSuper && data.role !== "super_admin") {
+        const updated = { ...data, role: "super_admin" as const };
+        await supabase.from("profiles").upsert(updated);
+        setProfile(updated as Profile);
+      } else {
+        setProfile(data as Profile);
+      }
     } else {
-      const isSuper = SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
       const newProfile: Profile = {
         id: userId,
         email,
