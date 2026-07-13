@@ -4,13 +4,22 @@ import { PageHeader } from "@/components/console";
 import { useAuth } from "@/lib/auth-context";
 import { useProject } from "@/lib/project-context";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Trash2, Send, UserPlus } from "lucide-react";
+import { Plus, Trash2, Shield, Users, Code2, FlaskConical } from "lucide-react";
+import type { UserRole } from "@/lib/auth-context";
+
+type ManagedUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  created_at: string;
+};
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
       { title: "Admin · Task Tracker" },
-      { name: "description", content: "User management and invitations." },
+      { name: "description", content: "User management." },
     ],
   }),
   component: AdminPage,
@@ -20,63 +29,42 @@ function AdminPage() {
   const { profile, isSuperAdmin } = useAuth();
   const { developers, qaUsers, addDeveloper, removeDeveloper, addQaUser, removeQaUser } = useProject();
 
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
-  const [role, setRole] = useState<"developer" | "qa">("developer");
-  const [sending, setSending] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-
-  const [invitations, setInvitations] = useState<any[]>([]);
+  const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [loading, setLoading] = useState(true);
   const [newDev, setNewDev] = useState("");
   const [newQa, setNewQa] = useState("");
 
   useEffect(() => {
-    loadInvitations();
+    loadUsers();
   }, []);
 
-  async function loadInvitations() {
+  async function loadUsers() {
+    setLoading(true);
     try {
-      const { data } = await supabase.from("invitations").select("*").order("created_at", { ascending: false });
-      if (data) setInvitations(data);
-    } catch { /* table may not exist yet */ }
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (data) setUsers(data as ManagedUser[]);
+    } catch { /* ignore */ }
+    setLoading(false);
   }
 
-  async function handleInvite(e: React.FormEvent) {
-    e.preventDefault();
-    if (!email.trim() || !name.trim()) return;
-    setSending(true);
-    setMessage(null);
+  async function updateRole(userId: string, newRole: UserRole) {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ role: newRole })
+      .eq("id", userId);
 
-    const { error } = await supabase.from("invitations").insert({
-      email: email.trim().toLowerCase(),
-      name: name.trim(),
-      role,
-      invited_by: profile?.id,
-    });
-
-    if (error) {
-      setMessage(error.message);
-    } else {
-      setMessage("Invitation sent!");
-      setEmail("");
-      setName("");
-      setRole("developer");
-      loadInvitations();
+    if (!error) {
+      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
     }
-    setSending(false);
-  }
-
-  async function removeInvitation(id: string) {
-    await supabase.from("invitations").delete().eq("id", id);
-    loadInvitations();
   }
 
   if (!isSuperAdmin) {
     return (
       <>
-        <PageHeader
-          crumbs={[{ label: "Admin" }]}
-        />
+        <PageHeader crumbs={[{ label: "Admin" }]} />
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-3xl mx-auto">
             <div className="text-center py-12 bg-card border border-border rounded-lg">
@@ -88,50 +76,30 @@ function AdminPage() {
     );
   }
 
+  const roleIcon = (r: string) => {
+    switch (r) {
+      case "super_admin": return <Shield className="size-3.5" />;
+      case "developer": return <Code2 className="size-3.5" />;
+      case "qa": return <FlaskConical className="size-3.5" />;
+      default: return null;
+    }
+  };
+
   return (
     <>
-      <PageHeader
-        crumbs={[{ label: "Admin" }]}
-      />
+      <PageHeader crumbs={[{ label: "Admin" }]} />
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-3xl mx-auto space-y-8">
-          {/* Invite User */}
+        <div className="max-w-4xl mx-auto space-y-8">
+          {/* Users */}
           <section>
             <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
-              <Send className="size-4" />
-              Invite User
+              <Users className="size-4" />
+              Registered Users
             </h2>
-            <form onSubmit={handleInvite} className="space-y-3 bg-surface-2 border border-border rounded-lg p-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-mono uppercase text-muted-foreground">Name</label>
-                  <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" className="w-full mt-1 px-3 py-2 rounded-md bg-background border border-border text-sm focus:outline-none focus:border-primary" required />
-                </div>
-                <div>
-                  <label className="text-[10px] font-mono uppercase text-muted-foreground">Email</label>
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@example.com" className="w-full mt-1 px-3 py-2 rounded-md bg-background border border-border text-sm focus:outline-none focus:border-primary" required />
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] font-mono uppercase text-muted-foreground">Role</label>
-                <select value={role} onChange={(e) => setRole(e.target.value as "developer" | "qa")} className="w-full mt-1 px-3 py-2 rounded-md bg-background border border-border text-sm focus:outline-none focus:border-primary">
-                  <option value="developer">Developer</option>
-                  <option value="qa">QA</option>
-                </select>
-              </div>
-              <button type="submit" disabled={sending} className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-xs font-bold hover:brightness-110 disabled:opacity-50 flex items-center gap-2">
-                <UserPlus className="size-3.5" />
-                {sending ? "Sending..." : "Send Invitation"}
-              </button>
-              {message && <p className="text-xs text-muted-foreground">{message}</p>}
-            </form>
-          </section>
-
-          {/* Pending Invitations */}
-          <section>
-            <h2 className="text-base font-semibold mb-3">Pending Invitations</h2>
-            {invitations.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No pending invitations.</p>
+            {loading ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : users.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No users found.</p>
             ) : (
               <div className="bg-surface-2 border border-border rounded-lg overflow-hidden">
                 <table className="w-full text-sm">
@@ -144,15 +112,26 @@ function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {invitations.map((inv) => (
-                      <tr key={inv.id} className="border-b border-border last:border-0">
-                        <td className="px-4 py-2 font-medium">{inv.name}</td>
-                        <td className="px-4 py-2 text-muted-foreground">{inv.email}</td>
-                        <td className="px-4 py-2 capitalize">{inv.role}</td>
+                    {users.map((u) => (
+                      <tr key={u.id} className="border-b border-border last:border-0">
+                        <td className="px-4 py-2 font-medium">{u.name || "—"}</td>
+                        <td className="px-4 py-2 text-muted-foreground">{u.email}</td>
+                        <td className="px-4 py-2">
+                          <select
+                            value={u.role}
+                            onChange={(e) => updateRole(u.id, e.target.value as UserRole)}
+                            className="px-2 py-1 rounded bg-background border border-border text-xs font-medium focus:outline-none focus:border-primary"
+                          >
+                            <option value="super_admin">Super Admin</option>
+                            <option value="developer">Developer</option>
+                            <option value="qa">QA</option>
+                          </select>
+                        </td>
                         <td className="px-4 py-2 text-right">
-                          <button onClick={() => removeInvitation(inv.id)} className="p-1 rounded text-destructive hover:bg-destructive/10">
-                            <Trash2 className="size-3.5" />
-                          </button>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
+                            {roleIcon(u.role)}
+                            {u.role.replace("_", " ")}
+                          </span>
                         </td>
                       </tr>
                     ))}
@@ -164,7 +143,10 @@ function AdminPage() {
 
           {/* Developers List */}
           <section>
-            <h2 className="text-base font-semibold mb-3">Developers</h2>
+            <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+              <Code2 className="size-4" />
+              Developer Names
+            </h2>
             <div className="bg-surface-2 border border-border rounded-lg p-4 space-y-3">
               <div className="flex flex-wrap gap-2">
                 {developers.map((dev) => (
@@ -188,7 +170,10 @@ function AdminPage() {
 
           {/* QA Users List */}
           <section>
-            <h2 className="text-base font-semibold mb-3">QA Users</h2>
+            <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+              <FlaskConical className="size-4" />
+              QA Names
+            </h2>
             <div className="bg-surface-2 border border-border rounded-lg p-4 space-y-3">
               <div className="flex flex-wrap gap-2">
                 {qaUsers.map((user) => (
