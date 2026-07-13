@@ -43,6 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    const safetyTimer = setTimeout(finishLoading, 8000);
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (cancelled) return;
       const u = session?.user ?? null;
@@ -50,10 +52,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (u) {
         return loadProfile(u.id, u.email ?? "").catch(() => {});
       }
-    }).then(finishLoading).catch(finishLoading);
+    }).then(() => { clearTimeout(safetyTimer); finishLoading(); }).catch(() => { clearTimeout(safetyTimer); finishLoading(); });
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled) return;
+      clearTimeout(safetyTimer);
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
@@ -64,7 +67,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       finishLoading();
     });
 
-    return () => { cancelled = true; listener?.subscription.unsubscribe(); finishLoading(); };
+    return () => {
+      cancelled = true;
+      clearTimeout(safetyTimer);
+      listener?.subscription.unsubscribe();
+      finishLoading();
+    };
   }, []);
 
   async function loadProfile(userId: string, email: string) {
