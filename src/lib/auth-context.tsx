@@ -11,7 +11,7 @@ export type Profile = {
   role: UserRole;
 };
 
-const SUPER_ADMIN_EMAILS = ["edomaycos@gmail.com", "allenmartillan715@gmail.com"];
+const SUPER_ADMIN_EMAILS = ["edomaycos@gmail.com", "abellajoshua18@gmail.com", "allenmartillan715@gmail.com"];
 
 type AuthContextType = {
   user: User | null;
