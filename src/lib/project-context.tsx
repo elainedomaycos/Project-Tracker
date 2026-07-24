@@ -168,16 +168,29 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function load() {
       try {
-        const [projRes, taskRes, devRes, qaRes] = await Promise.all([
+        const [projRes, taskRes, devRes, qaRes, profilesRes] = await Promise.all([
           db().from("projects").select("*"),
           db().from("tasks").select("*"),
           db().from("settings").select("value").eq("key", "developers").single(),
           db().from("settings").select("value").eq("key", "qa_users").single(),
+          db().from("profiles").select("name, role"),
         ]);
         if (projRes.data?.length) setProjects(projRes.data.map(fromDbProject));
         if (taskRes.data) setTasks(taskRes.data.map(fromDbTask));
-        if (devRes.data?.value) setDeveloperState(devRes.data.value);
-        if (qaRes.data?.value) setQaState(qaRes.data.value);
+        const settingsDevs: string[] = devRes.data?.value ?? [];
+        const settingsQas: string[] = qaRes.data?.value ?? [];
+        const profileDevs = (profilesRes.data ?? [])
+          .filter((p: any) => p.role === "developer" && p.name)
+          .map((p: any) => p.name as string);
+        const profileQas = (profilesRes.data ?? [])
+          .filter((p: any) => p.role === "qa" && p.name)
+          .map((p: any) => p.name as string);
+        if (settingsDevs.length || profileDevs.length) {
+          setDeveloperState((prev) => [...new Set([...prev, ...settingsDevs, ...profileDevs])]);
+        }
+        if (settingsQas.length || profileQas.length) {
+          setQaState((prev) => [...new Set([...prev, ...settingsQas, ...profileQas])]);
+        }
       } catch (e) {
         console.warn("Failed to load from Supabase, using defaults", e);
       } finally {
