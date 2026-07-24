@@ -125,56 +125,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signIn(email: string, password: string): Promise<string | null> {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return error?.message ?? null;
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return error?.message ?? null;
+    } catch (e: any) {
+      return e?.message ?? "Failed to connect. Please try again.";
+    }
   }
 
   async function signUp(email: string, password: string, name: string): Promise<string | null> {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) return error.message;
-    if (data.user) {
-      const isSuper = SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
-      let role: UserRole = isSuper ? "super_admin" : "developer";
-      let profileName = name;
-      if (!isSuper) {
-        const { data: invite } = await db()
-          .from("invitations")
-          .select("role, name")
-          .eq("email", email.toLowerCase())
-          .maybeSingle();
-        if (invite) {
-          role = invite.role as UserRole;
-          profileName = invite.name;
-        }
-      }
-      const newProfile: Profile = { id: data.user.id, email, name: profileName, role };
-      await db().from("profiles").upsert(newProfile);
-      try {
-        if (role === "developer" || role === "qa") {
-          const key = role === "developer" ? "developers" : "qa_users";
-          const { data: existing } = await db().from("settings").select("value").eq("key", key).maybeSingle();
-          const list: string[] = existing?.value ?? [];
-          if (!list.includes(profileName)) {
-            await db().from("settings").upsert({ key, value: [...list, profileName] });
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) return error.message;
+      if (data.user) {
+        const isSuper = SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
+        let role: UserRole = isSuper ? "super_admin" : "developer";
+        let profileName = name;
+        if (!isSuper) {
+          const { data: invite } = await db()
+            .from("invitations")
+            .select("role, name")
+            .eq("email", email.toLowerCase())
+            .maybeSingle();
+          if (invite) {
+            role = invite.role as UserRole;
+            profileName = invite.name;
           }
         }
-      } catch { /* settings may not exist yet */ }
-      setProfile(newProfile);
+        const newProfile: Profile = { id: data.user.id, email, name: profileName, role };
+        await db().from("profiles").upsert(newProfile);
+        try {
+          if (role === "developer" || role === "qa") {
+            const key = role === "developer" ? "developers" : "qa_users";
+            const { data: existing } = await db().from("settings").select("value").eq("key", key).maybeSingle();
+            const list: string[] = existing?.value ?? [];
+            if (!list.includes(profileName)) {
+              await db().from("settings").upsert({ key, value: [...list, profileName] });
+            }
+          }
+        } catch { /* settings may not exist yet */ }
+        setProfile(newProfile);
+      }
+      return null;
+    } catch (e: any) {
+      return e?.message ?? "Failed to connect. Please try again.";
     }
-    return null;
   }
 
   async function signOut() {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch { /* best-effort */ }
     setUser(null);
     setProfile(null);
   }
 
   async function resetPassword(email: string): Promise<string | null> {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth`,
-    });
-    return error?.message ?? null;
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth`,
+      });
+      return error?.message ?? null;
+    } catch (e: any) {
+      return e?.message ?? "Failed to connect. Please try again.";
+    }
   }
 
   const value: AuthContextType = {
