@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { readCache, writeCache } from "@/lib/local-cache";
 import type { User } from "@supabase/supabase-js";
 
 export type UserRole = "super_admin" | "developer" | "qa";
@@ -29,6 +30,12 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// Generated Supabase types don't match this app's actual profiles/invitations/settings
+// schema (see supabase/migrations/00002_auth.sql) — same workaround as project-context.tsx.
+function db() {
+  return supabase as any;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -51,6 +58,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
+        const cached = readCache<Profile>(`profile:${u.id}`);
+        if (cached) {
+          setProfile(cached);
+          finishLoading();
+        }
         return loadProfile(u.id, u.email ?? "").catch(() => {});
       }
     }).then(finishLoading).catch(finishLoading);
@@ -74,27 +86,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function loadProfile(userId: string, email: string) {
-    const { data } = await supabase
+    const { data } = await db()
       .from("profiles")
       .select("*")
       .eq("id", userId)
       .single();
 
     const isSuper = SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
+    let finalProfile: Profile;
 
     if (data) {
       if (isSuper && data.role !== "super_admin") {
-        const updated = { ...data, role: "super_admin" as const };
-        await supabase.from("profiles").upsert(updated);
-        setProfile(updated as Profile);
+        finalProfile = { ...data, role: "super_admin" as const } as Profile;
+        await db().from("profiles").upsert(finalProfile);
       } else {
-        setProfile(data as Profile);
+        finalProfile = data as Profile;
       }
     } else {
       let role: UserRole = isSuper ? "super_admin" : "developer";
       let inviteName = "";
       if (!isSuper) {
-        const { data: invite } = await supabase
+        const { data: invite } = await db()
           .from("invitations")
           .select("role, name")
           .eq("email", email.toLowerCase())
@@ -104,10 +116,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           inviteName = invite.name;
         }
       }
-      const newProfile: Profile = { id: userId, email, name: inviteName, role };
-      await supabase.from("profiles").insert(newProfile);
-      setProfile(newProfile);
+      finalProfile = { id: userId, email, name: inviteName, role };
+      await db().from("profiles").insert(finalProfile);
     }
+
+    setProfile(finalProfile);
+    writeCache(`profile:${userId}`, finalProfile);
   }
 
   async function signIn(email: string, password: string): Promise<string | null> {
@@ -123,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let role: UserRole = isSuper ? "super_admin" : "developer";
       let profileName = name;
       if (!isSuper) {
-        const { data: invite } = await supabase
+        const { data: invite } = await db()
           .from("invitations")
           .select("role, name")
           .eq("email", email.toLowerCase())
@@ -134,14 +148,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
       const newProfile: Profile = { id: data.user.id, email, name: profileName, role };
-      await supabase.from("profiles").upsert(newProfile);
+      await db().from("profiles").upsert(newProfile);
       try {
         if (role === "developer" || role === "qa") {
           const key = role === "developer" ? "developers" : "qa_users";
-          const { data: existing } = await supabase.from("settings").select("value").eq("key", key).maybeSingle();
+          const { data: existing } = await db().from("settings").select("value").eq("key", key).maybeSingle();
           const list: string[] = existing?.value ?? [];
           if (!list.includes(profileName)) {
-            await supabase.from("settings").upsert({ key, value: [...list, profileName] });
+            await db().from("settings").upsert({ key, value: [...list, profileName] });
           }
         }
       } catch { /* settings may not exist yet */ }

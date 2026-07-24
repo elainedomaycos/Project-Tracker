@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { readCache, writeCache } from "@/lib/local-cache";
 
 export type TaskStatus = "pending" | "doing" | "qa" | "done";
 export type QaStatus = "waiting" | "passed" | "failed";
@@ -36,6 +37,13 @@ export type Project = {
 };
 
 export type AppView = "pm" | "developer" | "qa" | "client";
+
+type CachedProjectData = {
+  projects: Project[];
+  tasks: Task[];
+  developers: string[];
+  qaUsers: string[];
+};
 
 type ProjectContextType = {
   projects: Project[];
@@ -167,6 +175,14 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   // Load from Supabase on mount
   useEffect(() => {
     async function load() {
+      const cached = readCache<CachedProjectData>("project-data");
+      if (cached) {
+        setProjects(cached.projects);
+        setTasks(cached.tasks);
+        setDeveloperState(cached.developers);
+        setQaState(cached.qaUsers);
+        setLoading(false);
+      }
       try {
         const [projRes, taskRes, devRes, qaRes, profilesRes] = await Promise.all([
           db().from("projects").select("*"),
@@ -199,6 +215,13 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
     load();
   }, []);
+
+  // Cache last-known data so the next load can render instantly instead of
+  // waiting on Supabase (skip the transient pre-hydration defaults).
+  useEffect(() => {
+    if (loading) return;
+    writeCache<CachedProjectData>("project-data", { projects, tasks, developers, qaUsers });
+  }, [projects, tasks, developers, qaUsers, loading]);
 
   useEffect(() => {
     if (projects.length > 0) {
