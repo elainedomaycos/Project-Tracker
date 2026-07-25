@@ -169,6 +169,7 @@ CREATE TABLE IF NOT EXISTS public.hackathons (
   name TEXT NOT NULL,
   description TEXT DEFAULT '',
   theme TEXT DEFAULT '',
+  category TEXT DEFAULT 'hackathon',
   start_date TIMESTAMPTZ NOT NULL,
   end_date TIMESTAMPTZ NOT NULL,
   location TEXT DEFAULT '',

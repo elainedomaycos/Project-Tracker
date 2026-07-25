@@ -142,7 +142,7 @@ const NAV_ITEMS: readonly NavItem[] = [
 ];
 
 const HACKATHON_NAV: readonly NavItem[] = [
-  { to: "/hackathons", label: "Tracker", icon: Trophy, roles: ["super_admin", "developer", "qa"] },
+  { to: "/hackathons", label: "Events", icon: Trophy, roles: ["super_admin", "developer", "qa"] },
 ];
 
 const EXTRA_NAV: readonly NavItem[] = [
@@ -274,7 +274,7 @@ function AppShell({ pathname, queryClient }: { pathname: string; queryClient: Qu
           {HACKATHON_NAV.filter(canSee).length > 0 && (
             <div className="pt-4 mt-4 border-t border-border">
               <div className="px-3 pb-2 text-[9px] font-mono uppercase text-muted-foreground tracking-wider">
-                Hackathons
+                Tracker
               </div>
               {HACKATHON_NAV.filter(canSee).map((item) => {
                 const active = pathname === item.to;
