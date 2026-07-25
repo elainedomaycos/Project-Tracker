@@ -54,7 +54,7 @@ function QaPage() {
         </div>
 
         {/* QA Queue */}
-        <div className="bg-card border border-border rounded-lg p-5">
+        <div>
           <h2 className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-4">Waiting for QA</h2>
           {qaTasks.length === 0 ? (
             <div className="text-center py-12">
@@ -62,67 +62,67 @@ function QaPage() {
               <p className="text-sm text-muted-foreground">All tasks are reviewed. Nothing waiting for QA.</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {qaTasks.map((t) => (
                 <div
                   key={t.id}
-                  className="p-4 bg-surface-2 border border-border rounded-lg"
+                  className="bg-card border border-border rounded-lg p-4 flex flex-col"
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[10px] text-primary font-bold">{t.taskId}</span>
-                        <span className="text-sm font-medium">{t.title}</span>
-                      </div>
-                      {t.description && (
-                        <p className="text-xs text-muted-foreground mt-1">{t.description}</p>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-mono text-[10px] text-primary font-bold">{t.taskId}</span>
+                      {t.qaStatus === "failed" && (
+                        <span className="flex items-center gap-1 text-[9px] font-mono text-destructive bg-destructive/10 px-1.5 py-0.5 rounded shrink-0">
+                          <AlertTriangle className="size-2.5" />
+                          Rework
+                        </span>
                       )}
                     </div>
-                    {t.qaStatus === "failed" && (
-                      <span className="flex items-center gap-1 text-[10px] font-mono text-destructive bg-destructive/10 px-2 py-0.5 rounded shrink-0">
-                        <AlertTriangle className="size-3" />
-                        Rework
-                      </span>
-                    )}
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
-                    <div className="flex items-center gap-1.5">
-                      <User className="size-3" />
+                  <h3 className="text-sm font-medium truncate">{t.title}</h3>
+
+                  {t.description && (
+                    <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{t.description}</p>
+                  )}
+
+                  <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <User className="size-2.5" />
                       {t.developer}
-                    </div>
-                    <span>{t.field}</span>
-                    {t.dueDate && <span>Due: {t.dueDate}</span>}
+                    </span>
+                    {t.field && <span>· {t.field}</span>}
+                    {t.dueDate && <span>· Due: {t.dueDate}</span>}
                   </div>
 
                   {t.remarks && (
-                    <div className="mb-3 p-2 bg-card border border-border rounded text-xs text-muted-foreground">
+                    <div className="mt-2 p-2 bg-surface-2 border border-border rounded text-[10px] text-muted-foreground line-clamp-2">
                       {t.remarks}
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2">
+                  <div className="mt-auto pt-3 flex items-center gap-2">
                     {canReview ? (
                       <>
                         {t.qaStatus !== "failed" && (
                           <button
                             onClick={() => handleFail(t.id)}
-                            className="px-4 py-2 bg-destructive/10 text-destructive text-xs font-bold rounded hover:bg-destructive/20 flex items-center gap-1.5"
+                            className="px-3 py-1.5 bg-destructive/10 text-destructive text-[9px] font-bold rounded hover:bg-destructive/20 flex items-center gap-1"
                           >
-                            <XCircle className="size-3.5" />
-                            Fail — Back to Dev
+                            <XCircle className="size-2.5" />
+                            Fail
                           </button>
                         )}
                         <button
                           onClick={() => handlePass(t.id)}
-                          className="px-4 py-2 bg-success/10 text-success text-xs font-bold rounded hover:bg-success/20 flex items-center gap-1.5"
+                          className="px-3 py-1.5 bg-success/10 text-success text-[9px] font-bold rounded hover:bg-success/20 flex items-center gap-1"
                         >
-                          <CheckCircle2 className="size-3.5" />
-                          Pass — Done
+                          <CheckCircle2 className="size-2.5" />
+                          Pass
                         </button>
                       </>
                     ) : (
-                      <span className="text-[10px] font-mono text-muted-foreground">
+                      <span className="text-[9px] font-mono text-muted-foreground">
                         {t.qaStatus === "waiting" ? "Waiting for QA" : t.qaStatus === "passed" ? "Passed" : t.qaStatus === "failed" ? "Failed — Rework" : "—"}
                       </span>
                     )}

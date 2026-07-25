@@ -201,7 +201,7 @@ function TeamPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((member) => (
               <MemberCard
                 key={member.id}
@@ -231,100 +231,109 @@ function MemberCard({
     .slice(0, 2);
 
   return (
-    <div className="bg-card border border-border rounded-lg overflow-hidden">
-      <div className="p-5">
-        <div className="flex items-start gap-4">
+    <div className="bg-card border border-border rounded-lg overflow-hidden flex flex-col">
+      <div className="p-4 flex-1 flex flex-col">
+        <div className="flex items-center gap-3">
           {member.avatar_url ? (
             <img
               src={member.avatar_url}
               alt={member.display_name}
-              className="size-14 rounded-full object-cover border border-border shrink-0"
+              className="size-10 rounded-full object-cover border border-border shrink-0"
             />
           ) : (
-            <div className="size-14 rounded-full bg-primary/10 border border-primary/20 grid place-items-center text-lg font-bold text-primary shrink-0">
+            <div className="size-10 rounded-full bg-primary/10 border border-primary/20 grid place-items-center text-sm font-bold text-primary shrink-0">
               {initials}
             </div>
           )}
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-semibold truncate">{member.display_name}</h3>
+              <h3 className="text-sm font-semibold truncate">{member.display_name}</h3>
               {isOwnProfile && (
-                <span className="px-1.5 py-0.5 text-[9px] font-mono uppercase bg-primary/10 text-primary border border-primary/20 rounded">
+                <span className="px-1 py-0.5 text-[8px] font-mono uppercase bg-primary/10 text-primary border border-primary/20 rounded">
                   You
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-1.5 mt-0.5">
               {member.role_title && (
-                <span className="text-xs text-muted-foreground">{member.role_title}</span>
+                <span className="text-[10px] text-muted-foreground truncate">{member.role_title}</span>
               )}
               {member.role_title && member.team && (
                 <span className="text-muted-foreground/40">·</span>
               )}
               {member.team && (
-                <span className="text-xs text-muted-foreground">{member.team}</span>
+                <span className="text-[10px] text-muted-foreground truncate">{member.team}</span>
               )}
             </div>
-
-            {member.bio && (
-              <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{member.bio}</p>
-            )}
-
-            {member.skills && member.skills.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {member.skills.map((skill) => (
-                  <span
-                    key={skill}
-                    className="px-2 py-0.5 text-[10px] font-mono bg-surface-2 border border-border rounded"
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {member.links && member.links.length > 0 && (
-              <div className="flex items-center gap-2 mt-3">
-                {member.links.map((link) => {
-                  const cfg = LINK_CONFIG[link.type];
-                  if (!cfg) return null;
-                  const Icon = cfg.icon;
-                  return (
-                    <a
-                      key={link.type}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono text-muted-foreground hover:text-foreground bg-surface-2 border border-border rounded transition-colors"
-                      title={cfg.label}
-                    >
-                      <Icon className="size-3" />
-                      {cfg.label}
-                    </a>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </div>
+
+        {member.bio && (
+          <p className="text-[11px] text-muted-foreground mt-2 line-clamp-2">{member.bio}</p>
+        )}
+
+        {member.skills && member.skills.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {member.skills.slice(0, 6).map((skill) => (
+              <span
+                key={skill}
+                className="px-1.5 py-0.5 text-[9px] font-mono bg-surface-2 border border-border rounded"
+              >
+                {skill}
+              </span>
+            ))}
+            {member.skills.length > 6 && (
+              <span className="text-[9px] text-muted-foreground">+{member.skills.length - 6}</span>
+            )}
+          </div>
+        )}
+
+        {member.links && member.links.length > 0 && (
+          <div className="flex items-center gap-1 mt-2">
+            {member.links.map((link) => {
+              const cfg = LINK_CONFIG[link.type];
+              if (!cfg) return null;
+              const Icon = cfg.icon;
+              return (
+                <a
+                  key={link.type}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  title={cfg.label}
+                >
+                  <Icon className="size-3" />
+                </a>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {member.projects.length > 0 && (
-        <div className="border-t border-border px-5 py-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Briefcase className="size-3.5 text-muted-foreground" />
-            <span className="text-[10px] font-mono uppercase text-muted-foreground tracking-widest">
-              Projects
-            </span>
-            <span className="text-[10px] font-mono text-muted-foreground/60">
-              ({member.projects.length})
+        <div className="border-t border-border px-4 py-3">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Briefcase className="size-3 text-muted-foreground" />
+            <span className="text-[9px] font-mono uppercase text-muted-foreground">
+              {member.projects.length} project{member.projects.length !== 1 ? "s" : ""}
             </span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {member.projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
+          <div className="space-y-1.5">
+            {member.projects.slice(0, 3).map((project) => (
+              <div key={project.id} className="flex items-center gap-2 text-[10px]">
+                <span className="font-medium truncate">{project.name}</span>
+                {project.status && project.status !== "completed" && (
+                  <span className="px-1 py-0.5 text-[8px] font-mono uppercase bg-warning/10 text-warning border border-warning/20 rounded shrink-0">
+                    {STATUS_LABELS[project.status] ?? project.status}
+                  </span>
+                )}
+              </div>
             ))}
+            {member.projects.length > 3 && (
+              <span className="text-[9px] text-muted-foreground">+{member.projects.length - 3} more</span>
+            )}
           </div>
         </div>
       )}

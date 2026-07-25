@@ -96,63 +96,64 @@ function DeveloperPage() {
         </div>
 
         {/* Active Tasks */}
-        <div className="bg-card border border-border rounded-lg p-5">
+        <div>
           <h2 className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-4">Tasks</h2>
           {activeTasks.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">No tasks found.</p>
           ) : (
-            <div className="space-y-2">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {activeTasks.map((t) => (
                 <div
                   key={t.id}
-                  className="flex items-center gap-4 p-3 bg-surface-2 border border-border rounded text-sm hover:border-primary/40 transition-colors"
+                  className="bg-card border border-border rounded-lg p-4 flex flex-col hover:border-primary/40 transition-colors"
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] text-primary font-bold">{t.taskId}</span>
-                      <span className="truncate font-medium">{t.title}</span>
-                      <span className="text-[9px] font-mono text-muted-foreground ml-auto">{t.developer}</span>
-                    </div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
-                      {t.field && `${t.field} · `}Due: {t.dueDate || "—"}
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <span className="font-mono text-[10px] text-primary font-bold">{t.taskId}</span>
+                    <div className="shrink-0">
+                      {isQa || (!isSuperAdmin && t.developer !== profile?.name) ? (
+                        <span className="px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground bg-surface-2 rounded">
+                          {t.status === "pending" ? "Pending" : t.status === "doing" ? "In Progress" : t.status === "qa" ? "In QA" : "Done"}
+                        </span>
+                      ) : (
+                        <>
+                          {t.status === "pending" && (
+                            <button
+                              onClick={() => handleStatusChange(t.id, "doing")}
+                              className="px-2 py-1 bg-primary text-primary-foreground text-[9px] font-bold rounded hover:brightness-110 flex items-center gap-1"
+                            >
+                              <Clock className="size-2.5" />
+                              Start
+                            </button>
+                          )}
+                          {t.status === "doing" && (
+                            <button
+                              onClick={() => handleStatusChange(t.id, "qa")}
+                              className="px-2 py-1 bg-info text-white text-[9px] font-bold rounded hover:brightness-110 flex items-center gap-1"
+                            >
+                              <ArrowRight className="size-2.5" />
+                              Move to QA
+                            </button>
+                          )}
+                          {t.status === "qa" && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-mono text-info bg-info/10 rounded">In QA</span>
+                          )}
+                          {t.status === "done" && (
+                            <span className="flex items-center gap-1 text-[9px] font-mono text-success">
+                              <CheckCircle2 className="size-2.5" /> Done
+                            </span>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    {isQa || (!isSuperAdmin && t.developer !== profile?.name) ? (
-                      <span className="px-2 py-1 text-[10px] font-mono text-muted-foreground bg-surface-2 rounded">
-                        {t.status === "pending" ? "Pending" : t.status === "doing" ? "In Progress" : t.status === "qa" ? "In QA" : "Done"}
-                      </span>
-                    ) : (
-                      <>
-                        {t.status === "pending" && (
-                          <button
-                            onClick={() => handleStatusChange(t.id, "doing")}
-                            className="px-3 py-1.5 bg-primary text-primary-foreground text-[10px] font-bold rounded hover:brightness-110 flex items-center gap-1"
-                          >
-                            <Clock className="size-3" />
-                            Start
-                          </button>
-                        )}
-                        {t.status === "doing" && (
-                          <button
-                            onClick={() => handleStatusChange(t.id, "qa")}
-                            className="px-3 py-1.5 bg-info text-white text-[10px] font-bold rounded hover:brightness-110 flex items-center gap-1"
-                          >
-                            <ArrowRight className="size-3" />
-                            Move to QA
-                          </button>
-                        )}
-                        {t.status === "qa" && (
-                          <span className="px-2 py-1 text-[10px] font-mono text-info bg-info/10 rounded">In QA</span>
-                        )}
-                        {t.status === "done" && (
-                          <span className="flex items-center gap-1 text-[10px] font-mono text-success">
-                            <CheckCircle2 className="size-3" /> Done
-                          </span>
-                        )}
-                      </>
-                    )}
+                  <h3 className="text-sm font-medium truncate">{t.title}</h3>
+
+                  <div className="mt-auto pt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
+                    {t.field && <span>{t.field}</span>}
+                    {t.field && t.dueDate && <span>·</span>}
+                    {t.dueDate && <span>Due: {t.dueDate}</span>}
+                    <span className="ml-auto truncate text-[9px]">{t.developer}</span>
                   </div>
                 </div>
               ))}
@@ -162,15 +163,19 @@ function DeveloperPage() {
 
         {/* Done Tasks */}
         {doneTasks.length > 0 && (
-          <div className="bg-card border border-border rounded-lg p-5">
+          <div>
             <h2 className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-4">Recently Completed</h2>
-            <div className="space-y-1.5">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {doneTasks.map((t) => (
-                <div key={t.id} className="flex items-center gap-3 p-2.5 bg-surface-2 border border-border rounded text-sm">
+                <div key={t.id} className="bg-card border border-border rounded-lg p-3 flex items-center gap-3">
                   <CheckCircle2 className="size-3.5 text-success shrink-0" />
-                  <span className="font-mono text-[10px] text-muted-foreground">{t.taskId}</span>
-                  <span className="flex-1 truncate text-muted-foreground">{t.title}</span>
-                  <span className="text-[10px] text-muted-foreground">{t.developer}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[10px] text-muted-foreground">{t.taskId}</span>
+                      <span className="text-xs truncate text-muted-foreground">{t.title}</span>
+                    </div>
+                  </div>
+                  <span className="text-[9px] text-muted-foreground shrink-0">{t.developer}</span>
                 </div>
               ))}
             </div>

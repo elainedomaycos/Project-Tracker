@@ -568,7 +568,7 @@ function HackathonsPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((hack) => {
               const st = STATUS_CONFIG[hack.status ?? "upcoming"] ?? STATUS_CONFIG.upcoming;
               const cat = CATEGORY_MAP[hack.category ?? "hackathon"] ?? CATEGORY_MAP.other;
@@ -578,146 +578,111 @@ function HackathonsPage() {
               const endDate = new Date(hack.end_date);
 
               return (
-                <div key={hack.id} className="bg-card border border-border rounded-lg overflow-hidden">
+                <div key={hack.id} className="bg-card border border-border rounded-lg overflow-hidden flex flex-col">
                   <div
-                    className="p-5 cursor-pointer hover:bg-surface-2/50 transition-colors"
+                    className="p-4 cursor-pointer hover:bg-surface-2/50 transition-colors flex-1 flex flex-col"
                     onClick={() => setExpandedId(expanded ? null : hack.id)}
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-base font-semibold">{hack.name}</h3>
-                          <span
-                            className={`px-2 py-0.5 text-[10px] font-mono uppercase border rounded ${st.color} ${st.bg}`}
-                          >
-                            {st.label}
-                          </span>
-                          <span
-                            className={`px-2 py-0.5 text-[10px] font-mono uppercase border rounded ${cat.color} ${cat.bg}`}
-                          >
-                            {cat.label}
-                          </span>
-                        </div>
-
-                        {hack.theme && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Theme: {hack.theme}
-                          </p>
-                        )}
-
-                        {hack.description && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                            {hack.description}
-                          </p>
-                        )}
-
-                        <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground flex-wrap">
-                          <span className="inline-flex items-center gap-1">
-                            <Calendar className="size-3" />
-                            {startDate.toLocaleDateString()} — {endDate.toLocaleDateString()}
-                          </span>
-                          {hack.location && (
-                            <span className="inline-flex items-center gap-1">
-                              <MapPin className="size-3" />
-                              {hack.location}
-                            </span>
-                          )}
-                          <span className="inline-flex items-center gap-1">
-                            <Briefcase className="size-3" />
-                            {hack.projects.length} project{hack.projects.length !== 1 ? "s" : ""}
-                          </span>
-                          {hack.registration_url && (
-                            <a
-                              href={hack.registration_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 text-primary hover:underline"
-                            >
-                              <ClipboardList className="size-3" />
-                              Registration Form
-                            </a>
-                          )}
-                        </div>
+                        <h3 className="text-sm font-semibold truncate">{hack.name}</h3>
                       </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span
+                          className={`px-1.5 py-0.5 text-[9px] font-mono uppercase border rounded ${st.color} ${st.bg}`}
+                        >
+                          {st.label}
+                        </span>
+                        {expanded ? (
+                          <ChevronUp className="size-3.5 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="size-3.5 text-muted-foreground" />
+                        )}
+                      </div>
+                    </div>
 
-                      {expanded ? (
-                        <ChevronUp className="size-4 text-muted-foreground shrink-0" />
-                      ) : (
-                        <ChevronDown className="size-4 text-muted-foreground shrink-0" />
+                    <span
+                      className={`inline-flex items-center gap-1 w-fit px-1.5 py-0.5 text-[9px] font-mono uppercase border rounded mt-1.5 ${cat.color} ${cat.bg}`}
+                    >
+                      <Tag className="size-2.5" />
+                      {cat.label}
+                    </span>
+
+                    {hack.theme && (
+                      <p className="text-[11px] text-muted-foreground mt-2 truncate">
+                        {hack.theme}
+                      </p>
+                    )}
+
+                    {hack.description && (
+                      <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
+                        {hack.description}
+                      </p>
+                    )}
+
+                    <div className="mt-auto pt-3 space-y-1.5 text-[10px] text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="size-3 shrink-0" />
+                        <span className="truncate">{startDate.toLocaleDateString()} — {endDate.toLocaleDateString()}</span>
+                      </div>
+                      {hack.location && (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="size-3 shrink-0" />
+                          <span className="truncate">{hack.location}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1">
+                        <Briefcase className="size-3 shrink-0" />
+                        <span>{hack.projects.length} project{hack.projects.length !== 1 ? "s" : ""}</span>
+                      </div>
+                      {hack.registration_url && (
+                        <a
+                          href={hack.registration_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                        >
+                          <ClipboardList className="size-3 shrink-0" />
+                          Register
+                        </a>
                       )}
                     </div>
                   </div>
 
                   {expanded && (
-                    <div className="border-t border-border px-5 py-4">
+                    <div className="border-t border-border px-4 py-3">
                       {hack.projects.length > 0 ? (
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="space-y-2">
                           {hack.projects.map((proj) => (
                             <div
                               key={proj.id}
-                              className="bg-surface-2 border border-border rounded-lg overflow-hidden"
+                              className="flex items-center gap-2 p-2 bg-surface-2 border border-border rounded"
                             >
-                              {proj.image_url ? (
-                                <div className="h-20 overflow-hidden">
-                                  <img
-                                    src={proj.image_url}
-                                    alt={proj.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              ) : (
-                                <div className="h-20 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                                  <span className="text-xl font-bold text-primary/30">
-                                    {proj.name.charAt(0)}
-                                  </span>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-medium truncate">{proj.name}</div>
+                                <div className="text-[9px] text-muted-foreground truncate">by {proj.owner_name}</div>
+                              </div>
+                              {proj.links.length > 0 && (
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {proj.links.map((link) => {
+                                    const cfg = LINK_CONFIG[link.link_type];
+                                    if (!cfg) return null;
+                                    const Icon = cfg.icon;
+                                    return (
+                                      <a
+                                        key={link.link_type}
+                                        href={link.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-muted-foreground hover:text-foreground transition-colors"
+                                      >
+                                        <Icon className="size-3" />
+                                      </a>
+                                    );
+                                  })}
                                 </div>
                               )}
-                              <div className="p-3 space-y-1.5">
-                                <div>
-                                  <h4 className="text-sm font-medium truncate">{proj.name}</h4>
-                                  <p className="text-[10px] text-muted-foreground">
-                                    by {proj.owner_name}
-                                  </p>
-                                </div>
-                                {proj.short_description && (
-                                  <p className="text-[11px] text-muted-foreground line-clamp-2">
-                                    {proj.short_description}
-                                  </p>
-                                )}
-                                {proj.technologies && proj.technologies.length > 0 && (
-                                  <div className="flex flex-wrap gap-1">
-                                    {proj.technologies.map((tech) => (
-                                      <span
-                                        key={tech}
-                                        className="px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground bg-background border border-border rounded"
-                                      >
-                                        {tech}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                                {proj.links.length > 0 && (
-                                  <div className="flex items-center gap-1 pt-1">
-                                    {proj.links.map((link) => {
-                                      const cfg = LINK_CONFIG[link.link_type];
-                                      if (!cfg) return null;
-                                      const Icon = cfg.icon;
-                                      return (
-                                        <a
-                                          key={link.link_type}
-                                          href={link.url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground hover:text-foreground transition-colors"
-                                        >
-                                          <Icon className="size-3" />
-                                          {cfg.label}
-                                        </a>
-                                      );
-                                    })}
-                                  </div>
-                                )}
                               </div>
                             </div>
                           ))}
