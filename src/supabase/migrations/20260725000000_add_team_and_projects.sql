@@ -232,7 +232,36 @@ EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
 
--- 8. Auto-add owner as project_member on project creation
+-- 8. Event registrations (per-user registration tracking)
+CREATE TABLE IF NOT EXISTS public.event_registrations (
+  event_id UUID NOT NULL REFERENCES public.hackathons(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  registered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (event_id, user_id)
+);
+
+GRANT SELECT, INSERT, DELETE ON public.event_registrations TO authenticated;
+GRANT ALL ON public.event_registrations TO service_role;
+
+DO $$ BEGIN
+  ALTER TABLE public.event_registrations ENABLE ROW LEVEL SECURITY;
+EXCEPTION
+  WHEN undefined_table THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users read own registrations" ON public.event_registrations FOR SELECT TO authenticated USING (user_id = auth.uid());
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users manage own registrations" ON public.event_registrations FOR ALL TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+-- 9. Auto-add owner as project_member on project creation
 CREATE OR REPLACE FUNCTION public.handle_new_member_project()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$

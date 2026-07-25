@@ -217,6 +217,40 @@ function HackathonsPage() {
     staleTime: 30_000,
   });
 
+  const { data: myRegistrations } = useQuery({
+    queryKey: ["event-registrations", user?.id],
+    queryFn: async (): Promise<Set<string>> => {
+      if (!user?.id) return new Set();
+      try {
+        const { data } = await db()
+          .from("event_registrations")
+          .select("event_id")
+          .eq("user_id", user.id);
+        return new Set((data ?? []).map((r: any) => r.event_id));
+      } catch {
+        return new Set();
+      }
+    },
+    enabled: !!user?.id,
+    staleTime: 30_000,
+  });
+
+  const toggleRegistration = useMutation({
+    mutationFn: async (eventId: string) => {
+      if (!user?.id) return;
+      const isRegistered = myRegistrations?.has(eventId);
+      if (isRegistered) {
+        await db().from("event_registrations").delete().eq("event_id", eventId).eq("user_id", user.id);
+      } else {
+        await db().from("event_registrations").insert({ event_id: eventId, user_id: user.id });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["event-registrations"] });
+    },
+    onError: () => toast.error("Could not update registration"),
+  });
+
   const createMutation = useMutation({
     mutationFn: async (data: HackathonForm) => {
       const { error } = await db().from("hackathons").insert({
@@ -644,10 +678,42 @@ function HackathonsPage() {
                           className="inline-flex items-center gap-1 text-primary hover:underline"
                         >
                           <ClipboardList className="size-3 shrink-0" />
-                          Register
+                          Registration Form
                         </a>
                       )}
                     </div>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleRegistration.mutate(hack.id);
+                      }}
+                      className={[
+                        "mt-2 w-full flex items-center justify-between px-2.5 py-1.5 text-[10px] font-mono uppercase border rounded transition-colors",
+                        myRegistrations?.has(hack.id)
+                          ? "bg-success/10 text-success border-success/30"
+                          : "bg-surface-2 text-muted-foreground border-border",
+                      ].join(" ")}
+                    >
+                      <span>{myRegistrations?.has(hack.id) ? "Registered" : "Not Registered"}</span>
+                      <span
+                        className={[
+                          "relative inline-flex h-4 w-7 shrink-0 rounded-full border transition-colors",
+                          myRegistrations?.has(hack.id)
+                            ? "bg-success border-success"
+                            : "bg-surface-2 border-border",
+                        ].join(" ")}
+                      >
+                        <span
+                          className={[
+                            "pointer-events-none inline-block size-3 rounded-full bg-white shadow-sm transition-transform mt-px",
+                            myRegistrations?.has(hack.id)
+                              ? "translate-x-3"
+                              : "translate-x-0",
+                          ].join(" ")}
+                        />
+                      </span>
+                    </button>
                   </div>
 
                   {expanded && (
@@ -683,7 +749,6 @@ function HackathonsPage() {
                                   })}
                                 </div>
                               )}
-                              </div>
                             </div>
                           ))}
                         </div>
