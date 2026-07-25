@@ -88,6 +88,7 @@ const hackathonSchema = z.object({
   end_date: z.string().min(1, "End date is required"),
   location: z.string().optional(),
   registration_url: z.string().optional(),
+  announcement_url: z.string().optional(),
 });
 
 type HackathonForm = z.infer<typeof hackathonSchema>;
@@ -102,6 +103,7 @@ type HackathonData = {
   end_date: string;
   location: string | null;
   registration_url: string | null;
+  announcement_url: string | null;
   status: string | null;
   created_by: string;
   created_at: string;
@@ -125,6 +127,7 @@ const EMPTY_FORM: HackathonForm = {
   end_date: "",
   location: "",
   registration_url: "",
+  announcement_url: "",
 };
 
 function HackathonsPage() {
@@ -262,6 +265,7 @@ function HackathonsPage() {
         end_date: data.end_date,
         location: data.location ?? "",
         registration_url: data.registration_url ?? "",
+        announcement_url: data.announcement_url ?? "",
         status: new Date(data.start_date) > new Date() ? "upcoming" : "active",
         created_by: user!.id,
       });
@@ -303,6 +307,7 @@ function HackathonsPage() {
         end_date: data.end_date,
         location: data.location ?? "",
         registration_url: data.registration_url ?? "",
+        announcement_url: data.announcement_url ?? "",
       }).eq("id", id);
       if (error) throw error;
     },
@@ -341,6 +346,7 @@ function HackathonsPage() {
       end_date: hack.end_date.slice(0, 16),
       location: hack.location ?? "",
       registration_url: hack.registration_url ?? "",
+      announcement_url: hack.announcement_url ?? "",
     });
   }
 
@@ -529,6 +535,15 @@ function HackathonsPage() {
                 </div>
 
                 <div>
+                  <label className="text-[10px] font-mono uppercase text-muted-foreground">Announcement / FB Post URL</label>
+                  <input
+                    {...form.register("announcement_url")}
+                    placeholder="https://facebook.com/..."
+                    className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+
+                <div>
                   <label className="text-[10px] font-mono uppercase text-muted-foreground">Description</label>
                   <textarea
                     {...form.register("description")}
@@ -602,7 +617,7 @@ function HackathonsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-start">
             {filtered.map((hack) => {
               const st = STATUS_CONFIG[hack.status ?? "upcoming"] ?? STATUS_CONFIG.upcoming;
               const cat = CATEGORY_MAP[hack.category ?? "hackathon"] ?? CATEGORY_MAP.other;
@@ -614,7 +629,7 @@ function HackathonsPage() {
               return (
                 <div key={hack.id} className="bg-card border border-border rounded-lg overflow-hidden flex flex-col">
                   <div
-                    className="p-4 cursor-pointer hover:bg-surface-2/50 transition-colors flex-1 flex flex-col"
+                    className="p-4 cursor-pointer hover:bg-surface-2/50 transition-colors flex-1 flex flex-col min-h-[240px]"
                     onClick={() => setExpandedId(expanded ? null : hack.id)}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -679,6 +694,18 @@ function HackathonsPage() {
                         >
                           <ClipboardList className="size-3 shrink-0" />
                           Registration Form
+                        </a>
+                      )}
+                      {hack.announcement_url && (
+                        <a
+                          href={hack.announcement_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                        >
+                          <ExternalLink className="size-3 shrink-0" />
+                          Announcement
                         </a>
                       )}
                     </div>

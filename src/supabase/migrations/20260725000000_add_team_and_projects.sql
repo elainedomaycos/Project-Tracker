@@ -174,6 +174,7 @@ CREATE TABLE IF NOT EXISTS public.hackathons (
   end_date TIMESTAMPTZ NOT NULL,
   location TEXT DEFAULT '',
   registration_url TEXT DEFAULT '',
+  announcement_url TEXT DEFAULT '',
   status TEXT DEFAULT 'upcoming',
   created_by UUID NOT NULL REFERENCES auth.users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()

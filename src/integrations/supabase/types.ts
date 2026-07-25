@@ -140,6 +140,7 @@ export type Database = {
           end_date: string
           location: string | null
           registration_url: string | null
+          announcement_url: string | null
           status: string | null
           created_by: string
           created_at: string
@@ -154,6 +155,7 @@ export type Database = {
           end_date: string
           location?: string | null
           registration_url?: string | null
+          announcement_url?: string | null
           status?: string | null
           created_by: string
           created_at?: string
@@ -168,6 +170,7 @@ export type Database = {
           end_date?: string
           location?: string | null
           registration_url?: string | null
+          announcement_url?: string | null
           status?: string | null
           created_by?: string
           created_at?: string
