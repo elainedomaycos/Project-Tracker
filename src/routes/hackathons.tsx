@@ -627,7 +627,7 @@ function HackathonsPage() {
               const endDate = new Date(hack.end_date);
 
               return (
-                <div key={hack.id} className="bg-card border border-border rounded-lg overflow-hidden flex flex-col">
+                <div key={hack.id} className={`bg-card border border-border rounded-lg overflow-hidden flex flex-col ${expanded ? "" : "h-[240px]"}`}>
                   <div
                     className="p-4 cursor-pointer hover:bg-surface-2/50 transition-colors flex-1 flex flex-col min-h-[240px]"
                     onClick={() => setExpandedId(expanded ? null : hack.id)}
