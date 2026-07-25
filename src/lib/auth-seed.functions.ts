@@ -6,12 +6,54 @@ export type DemoAccount = {
   display_name: string;
   role: "pm" | "developer" | "qa";
   team: string;
+  role_title: string;
+  bio: string;
+  skills: string[];
+  links: { type: string; url: string }[];
 };
 
 export const DEMO_ACCOUNTS: DemoAccount[] = [
-  { email: "pm@scrum.demo", password: "demo1234!", display_name: "Elaine Thorne", role: "pm", team: "Delivery" },
-  { email: "dev@scrum.demo", password: "demo1234!", display_name: "John Alvarez", role: "developer", team: "Engineering" },
-  { email: "qa@scrum.demo", password: "demo1234!", display_name: "Sara Petrov", role: "qa", team: "Quality" },
+  {
+    email: "pm@scrum.demo",
+    password: "demo1234!",
+    display_name: "Elaine Thorne",
+    role: "pm",
+    team: "Delivery",
+    role_title: "Project Manager",
+    bio: "Passionate about delivering great products on time. Experienced in agile methodologies and cross-functional team leadership.",
+    skills: ["Agile", "Scrum", "Jira", "Figma", "Notion"],
+    links: [
+      { type: "linkedin", url: "https://linkedin.com/in/elaine-thorne" },
+      { type: "website", url: "https://elaine-thorne.dev" },
+    ],
+  },
+  {
+    email: "dev@scrum.demo",
+    password: "demo1234!",
+    display_name: "John Alvarez",
+    role: "developer",
+    team: "Engineering",
+    role_title: "Full-Stack Developer",
+    bio: "Building performant web and mobile applications. Loves React, TypeScript, and clean architecture.",
+    skills: ["React", "TypeScript", "Node.js", "React Native", "Tailwind CSS", "Supabase"],
+    links: [
+      { type: "github", url: "https://github.com/johnalvarez" },
+      { type: "live_demo", url: "https://johnalvarez.dev" },
+    ],
+  },
+  {
+    email: "qa@scrum.demo",
+    password: "demo1234!",
+    display_name: "Sara Petrov",
+    role: "qa",
+    team: "Quality",
+    role_title: "QA Engineer",
+    bio: "Ensuring software quality through meticulous testing. Expertise in manual and automated testing strategies.",
+    skills: ["Cypress", "Playwright", "Jest", "Manual Testing", "Bug Reporting"],
+    links: [
+      { type: "linkedin", url: "https://linkedin.com/in/sara-petrov" },
+    ],
+  },
 ];
 
 export const ensureDemoAccounts = createServerFn({ method: "POST" }).handler(async () => {
@@ -36,7 +78,15 @@ export const ensureDemoAccounts = createServerFn({ method: "POST" }).handler(asy
     }
 
     await supabaseAdmin.from("profiles").upsert(
-      { id: user.id, display_name: acct.display_name, team: acct.team },
+      {
+        id: user.id,
+        display_name: acct.display_name,
+        team: acct.team,
+        role_title: acct.role_title,
+        bio: acct.bio,
+        skills: acct.skills,
+        links: acct.links,
+      },
       { onConflict: "id" },
     );
 

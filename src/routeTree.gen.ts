@@ -9,9 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TeamRouteImport } from './routes/team'
 import { Route as TasksRouteImport } from './routes/tasks'
-import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as QaRouteImport } from './routes/qa'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as HackathonsRouteImport } from './routes/hackathons'
 import { Route as DeveloperRouteImport } from './routes/developer'
 import { Route as CredentialsRouteImport } from './routes/credentials'
 import { Route as ClientRouteImport } from './routes/client'
@@ -20,19 +22,29 @@ import { Route as AiRouteImport } from './routes/ai'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TeamRoute = TeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ReportsRoute = ReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const QaRoute = QaRouteImport.update({
   id: '/qa',
   path: '/qa',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HackathonsRoute = HackathonsRouteImport.update({
+  id: '/hackathons',
+  path: '/hackathons',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DeveloperRoute = DeveloperRouteImport.update({
@@ -79,9 +91,11 @@ export interface FileRoutesByFullPath {
   '/client': typeof ClientRoute
   '/credentials': typeof CredentialsRoute
   '/developer': typeof DeveloperRoute
+  '/hackathons': typeof HackathonsRoute
+  '/profile': typeof ProfileRoute
   '/qa': typeof QaRoute
-  '/reports': typeof ReportsRoute
   '/tasks': typeof TasksRoute
+  '/team': typeof TeamRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -91,9 +105,11 @@ export interface FileRoutesByTo {
   '/client': typeof ClientRoute
   '/credentials': typeof CredentialsRoute
   '/developer': typeof DeveloperRoute
+  '/hackathons': typeof HackathonsRoute
+  '/profile': typeof ProfileRoute
   '/qa': typeof QaRoute
-  '/reports': typeof ReportsRoute
   '/tasks': typeof TasksRoute
+  '/team': typeof TeamRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -104,9 +120,11 @@ export interface FileRoutesById {
   '/client': typeof ClientRoute
   '/credentials': typeof CredentialsRoute
   '/developer': typeof DeveloperRoute
+  '/hackathons': typeof HackathonsRoute
+  '/profile': typeof ProfileRoute
   '/qa': typeof QaRoute
-  '/reports': typeof ReportsRoute
   '/tasks': typeof TasksRoute
+  '/team': typeof TeamRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -118,9 +136,11 @@ export interface FileRouteTypes {
     | '/client'
     | '/credentials'
     | '/developer'
+    | '/hackathons'
+    | '/profile'
     | '/qa'
-    | '/reports'
     | '/tasks'
+    | '/team'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -130,9 +150,11 @@ export interface FileRouteTypes {
     | '/client'
     | '/credentials'
     | '/developer'
+    | '/hackathons'
+    | '/profile'
     | '/qa'
-    | '/reports'
     | '/tasks'
+    | '/team'
   id:
     | '__root__'
     | '/'
@@ -142,9 +164,11 @@ export interface FileRouteTypes {
     | '/client'
     | '/credentials'
     | '/developer'
+    | '/hackathons'
+    | '/profile'
     | '/qa'
-    | '/reports'
     | '/tasks'
+    | '/team'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -155,13 +179,22 @@ export interface RootRouteChildren {
   ClientRoute: typeof ClientRoute
   CredentialsRoute: typeof CredentialsRoute
   DeveloperRoute: typeof DeveloperRoute
+  HackathonsRoute: typeof HackathonsRoute
+  ProfileRoute: typeof ProfileRoute
   QaRoute: typeof QaRoute
-  ReportsRoute: typeof ReportsRoute
   TasksRoute: typeof TasksRoute
+  TeamRoute: typeof TeamRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/team': {
+      id: '/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof TeamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tasks': {
       id: '/tasks'
       path: '/tasks'
@@ -169,18 +202,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TasksRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/reports': {
-      id: '/reports'
-      path: '/reports'
-      fullPath: '/reports'
-      preLoaderRoute: typeof ReportsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/qa': {
       id: '/qa'
       path: '/qa'
       fullPath: '/qa'
       preLoaderRoute: typeof QaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hackathons': {
+      id: '/hackathons'
+      path: '/hackathons'
+      fullPath: '/hackathons'
+      preLoaderRoute: typeof HackathonsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/developer': {
@@ -243,9 +283,11 @@ const rootRouteChildren: RootRouteChildren = {
   ClientRoute: ClientRoute,
   CredentialsRoute: CredentialsRoute,
   DeveloperRoute: DeveloperRoute,
+  HackathonsRoute: HackathonsRoute,
+  ProfileRoute: ProfileRoute,
   QaRoute: QaRoute,
-  ReportsRoute: ReportsRoute,
   TasksRoute: TasksRoute,
+  TeamRoute: TeamRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

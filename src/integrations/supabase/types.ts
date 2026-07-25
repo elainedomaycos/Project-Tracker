@@ -15,27 +15,171 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
           created_at: string
           display_name: string
           id: string
+          links: Json | null
+          role_title: string | null
+          skills: string[] | null
           team: string | null
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           display_name: string
           id: string
+          links?: Json | null
+          role_title?: string | null
+          skills?: string[] | null
           team?: string | null
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           display_name?: string
           id?: string
+          links?: Json | null
+          role_title?: string | null
+          skills?: string[] | null
           team?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      member_projects: {
+        Row: {
+          id: string
+          owner_id: string
+          name: string
+          short_description: string | null
+          project_type: string | null
+          role: string | null
+          technologies: string[] | null
+          image_url: string | null
+          status: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          owner_id: string
+          name: string
+          short_description?: string | null
+          project_type?: string | null
+          role?: string | null
+          technologies?: string[] | null
+          image_url?: string | null
+          status?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          owner_id?: string
+          name?: string
+          short_description?: string | null
+          project_type?: string | null
+          role?: string | null
+          technologies?: string[] | null
+          image_url?: string | null
+          status?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      project_links: {
+        Row: {
+          id: string
+          project_id: string
+          link_type: Database["public"]["Enums"]["project_link_type"]
+          url: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          link_type: Database["public"]["Enums"]["project_link_type"]
+          url: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          link_type?: Database["public"]["Enums"]["project_link_type"]
+          url?: string
+        }
+        Relationships: []
+      }
+      project_members: {
+        Row: {
+          project_id: string
+          member_id: string
+        }
+        Insert: {
+          project_id: string
+          member_id: string
+        }
+        Update: {
+          project_id?: string
+          member_id?: string
+        }
+        Relationships: []
+      }
+      hackathons: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          theme: string | null
+          start_date: string
+          end_date: string
+          location: string | null
+          status: string | null
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          theme?: string | null
+          start_date: string
+          end_date: string
+          location?: string | null
+          status?: string | null
+          created_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          theme?: string | null
+          start_date?: string
+          end_date?: string
+          location?: string | null
+          status?: string | null
+          created_by?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      hackathon_projects: {
+        Row: {
+          hackathon_id: string
+          project_id: string
+        }
+        Insert: {
+          hackathon_id: string
+          project_id: string
+        }
+        Update: {
+          hackathon_id?: string
+          project_id?: string
         }
         Relationships: []
       }
@@ -207,6 +351,7 @@ export type Database = {
     }
     Enums: {
       app_role: "pm" | "developer" | "qa"
+      project_link_type: "live_demo" | "github" | "figma" | "play_store" | "case_study" | "website"
       sprint_status: "planning" | "active" | "completed"
       task_status: "backlog" | "todo" | "in_progress" | "review" | "qa" | "done"
       task_priority: "low" | "medium" | "high" | "critical"
@@ -338,6 +483,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["pm", "developer", "qa"],
+      project_link_type: ["live_demo", "github", "figma", "play_store", "case_study", "website"],
       sprint_status: ["planning", "active", "completed"],
       task_status: ["backlog", "todo", "in_progress", "review", "qa", "done"],
       task_priority: ["low", "medium", "high", "critical"],

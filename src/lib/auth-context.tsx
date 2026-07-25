@@ -44,28 +44,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    let settled = false;
 
-    function finishLoading() {
-      if (!cancelled && !settled) {
-        settled = true;
-        setLoading(false);
+    function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+      return Promise.race([
+        promise,
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)),
+      ]);
+    }
+
+    async function init() {
+      try {
+        const { data: { session }, error } = await withTimeout(supabase.auth.getSession(), 10000);
+        if (cancelled) return;
+        if (error) {
+          console.warn("[Auth] getSession error:", error.message);
+          return;
+        }
+        const u = session?.user ?? null;
+        setUser(u);
+        if (u) {
+          const cached = readCache<Profile>(`profile:${u.id}`);
+          if (cached) setProfile(cached);
+          try {
+            await loadProfile(u.id, u.email ?? "");
+          } catch (e) {
+            console.warn("[Auth] loadProfile error:", e);
+          }
+        }
+      } catch (e: any) {
+        console.warn("[Auth] init error:", e?.message ?? e);
+        if (e?.message?.includes("Timeout")) {
+          const attempts = parseInt(sessionStorage.getItem("auth_retries") ?? "0", 10);
+          if (attempts >= 2) {
+            console.warn("[Auth] Supabase unreachable after retries — showing error");
+            sessionStorage.removeItem("auth_retries");
+          } else {
+            console.warn("[Auth] Supabase unreachable — clearing stale session, retry", attempts + 1);
+            sessionStorage.setItem("auth_retries", String(attempts + 1));
+            localStorage.clear();
+            window.location.reload();
+            return;
+          }
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (cancelled) return;
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) {
-        const cached = readCache<Profile>(`profile:${u.id}`);
-        if (cached) {
-          setProfile(cached);
-          finishLoading();
-        }
-        return loadProfile(u.id, u.email ?? "").catch(() => {});
-      }
-    }).then(finishLoading).catch(finishLoading);
+    init();
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled) return;
@@ -75,22 +101,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
-        try { await loadProfile(u.id, u.email ?? ""); } catch {}
+        try { await loadProfile(u.id, u.email ?? ""); } catch (e) {
+          console.warn("[Auth] loadProfile error on auth change:", e);
+        }
       } else {
         setProfile(null);
       }
-      finishLoading();
+      setLoading(false);
     });
 
-    return () => { cancelled = true; listener?.subscription.unsubscribe(); finishLoading(); };
+    return () => { cancelled = true; listener?.subscription.unsubscribe(); };
   }, []);
 
   async function loadProfile(userId: string, email: string) {
-    const { data } = await db()
+    const { data, error } = await db()
       .from("profiles")
       .select("*")
       .eq("id", userId)
       .single();
+
+    if (error) {
+      console.warn("[Auth] profile query error:", error.message);
+    }
 
     const isSuper = SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
     let finalProfile: Profile;
@@ -106,18 +138,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let role: UserRole = isSuper ? "super_admin" : "developer";
       let inviteName = "";
       if (!isSuper) {
-        const { data: invite } = await db()
-          .from("invitations")
-          .select("role, name")
-          .eq("email", email.toLowerCase())
-          .maybeSingle();
-        if (invite) {
-          role = invite.role as UserRole;
-          inviteName = invite.name;
+        try {
+          const { data: invite } = await db()
+            .from("invitations")
+            .select("role, name")
+            .eq("email", email.toLowerCase())
+            .maybeSingle();
+          if (invite) {
+            role = invite.role as UserRole;
+            inviteName = invite.name;
+          }
+        } catch {
+          // invitations table may not exist
         }
       }
       finalProfile = { id: userId, email, name: inviteName, role };
-      await db().from("profiles").insert(finalProfile);
+      try {
+        await db().from("profiles").upsert(finalProfile);
+      } catch (e) {
+        console.warn("[Auth] failed to create profile:", e);
+      }
     }
 
     setProfile(finalProfile);

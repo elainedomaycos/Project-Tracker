@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/console";
 import { useState } from "react";
 import { useProject, type TaskStatus } from "@/lib/project-context";
 import { useAuth } from "@/lib/auth-context";
-import { CheckCircle2, Clock, ArrowRight, Users, Plus, X } from "lucide-react";
+import { CheckCircle2, Clock, ArrowRight, Users, Plus, X, ArrowUpDown } from "lucide-react";
 
 export const Route = createFileRoute("/developer")({
   head: () => ({
@@ -19,14 +19,27 @@ function DeveloperPage() {
   const { tasks, currentProject, developers, qaUsers, updateTask, addDeveloper, removeDeveloper, addQaUser, removeQaUser } = useProject();
   const { profile, isSuperAdmin, isQa } = useAuth();
   const [filterDev, setFilterDev] = useState("all");
+  const [sortBy, setSortBy] = useState<"default" | "id-asc" | "id-desc">("default");
   const [showUsers, setShowUsers] = useState(false);
   const [newDev, setNewDev] = useState("");
   const [newQa, setNewQa] = useState("");
 
   const projectTasks = currentProject ? tasks.filter((t) => t.projectId === currentProject.id) : tasks;
   const filtered = filterDev === "all" ? projectTasks : projectTasks.filter((t) => t.developer === filterDev);
-  const activeTasks = filtered.filter((t) => t.status !== "done");
-  const doneTasks = filtered.filter((t) => t.status === "done");
+
+  function parseTaskNum(id: string): number {
+    const parts = id.split("-").slice(1);
+    return parts.reduce((acc, p) => acc * 1000 + (parseInt(p, 10) || 0), 0);
+  }
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === "id-asc") return parseTaskNum(a.taskId) - parseTaskNum(b.taskId);
+    if (sortBy === "id-desc") return parseTaskNum(b.taskId) - parseTaskNum(a.taskId);
+    return 0;
+  });
+
+  const activeTasks = sorted.filter((t) => t.status !== "done");
+  const doneTasks = sorted.filter((t) => t.status === "done");
 
   function handleStatusChange(taskId: string, status: TaskStatus) {
     updateTask(taskId, { status });
@@ -63,6 +76,19 @@ function DeveloperPage() {
             {developers.map((d) => (
               <option key={d} value={d}>{d}</option>
             ))}
+          </select>
+          <span className="text-[10px] font-mono uppercase text-muted-foreground flex items-center gap-1">
+            <ArrowUpDown className="size-3" />
+            Sort
+          </span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            className="px-3 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
+          >
+            <option value="default">Default</option>
+            <option value="id-asc">Task No. ↑</option>
+            <option value="id-desc">Task No. ↓</option>
           </select>
           <span className="text-[10px] font-mono text-muted-foreground ml-auto">
             Showing {activeTasks.length} of {projectTasks.length} tasks

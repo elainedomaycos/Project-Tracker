@@ -23,6 +23,9 @@ import {
   Shield,
   LogOut,
   User as UserIcon,
+  Users,
+  UserCircle,
+  Trophy,
 } from "lucide-react";
 
 import appCss from "../styles.css?url";
@@ -135,6 +138,11 @@ const NAV_ITEMS: readonly NavItem[] = [
   { to: "/developer", label: "Developer", icon: Code2, roles: ["super_admin", "developer", "qa"] },
   { to: "/qa", label: "QA Review", icon: FlaskConical, roles: ["super_admin", "developer", "qa"] },
   { to: "/client", label: "Client Portal", icon: ExternalLink, roles: ["super_admin", "developer", "qa"] },
+  { to: "/team", label: "Team", icon: Users, roles: ["super_admin", "developer", "qa"] },
+];
+
+const HACKATHON_NAV: readonly NavItem[] = [
+  { to: "/hackathons", label: "Tracker", icon: Trophy, roles: ["super_admin", "developer", "qa"] },
 ];
 
 const EXTRA_NAV: readonly NavItem[] = [
@@ -262,11 +270,41 @@ function AppShell({ pathname, queryClient }: { pathname: string; queryClient: Qu
               })}
             </div>
           )}
+
+          {HACKATHON_NAV.filter(canSee).length > 0 && (
+            <div className="pt-4 mt-4 border-t border-border">
+              <div className="px-3 pb-2 text-[9px] font-mono uppercase text-muted-foreground tracking-wider">
+                Hackathons
+              </div>
+              {HACKATHON_NAV.filter(canSee).map((item) => {
+                const active = pathname === item.to;
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={[
+                      "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                      active
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
+                    ].join(" ")}
+                  >
+                    <Icon className="size-4 shrink-0" strokeWidth={1.75} />
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="p-3 border-t border-border space-y-2">
           {profile && (
-            <div className="flex items-center gap-2 px-2">
+            <Link
+              to="/profile"
+              className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors"
+            >
               <div className="size-7 rounded-full bg-surface-2 border border-border grid place-items-center text-[9px] font-bold shrink-0">
                 {profile.name?.slice(0, 2).toUpperCase() || profile.email?.slice(0, 2).toUpperCase()}
               </div>
@@ -274,7 +312,7 @@ function AppShell({ pathname, queryClient }: { pathname: string; queryClient: Qu
                 <div className="text-xs font-medium truncate">{profile.name || "User"}</div>
                 <div className="text-[9px] font-mono text-muted-foreground capitalize truncate">{profile.role.replace("_", " ")}</div>
               </div>
-            </div>
+            </Link>
           )}
           <button
             onClick={signOut}
