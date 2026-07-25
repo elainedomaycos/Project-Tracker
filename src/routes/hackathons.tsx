@@ -627,9 +627,9 @@ function HackathonsPage() {
               const endDate = new Date(hack.end_date);
 
               return (
-                <div key={hack.id} className={`bg-card border rounded-lg overflow-hidden flex flex-col ${expanded ? "border-primary ring-1 ring-primary/20" : "border-border"}`}>
+                <div key={hack.id} className={`bg-card border rounded-lg flex flex-col ${expanded ? "border-primary ring-1 ring-primary/20" : "border-border"}`}>
                   <div
-                    className="p-4 cursor-pointer hover:bg-surface-2/50 transition-colors flex-1 flex flex-col min-h-[240px]"
+                    className="p-4 cursor-pointer hover:bg-surface-2/50 transition-colors flex flex-col h-[240px] overflow-hidden"
                     onClick={() => setExpandedId(expanded ? null : hack.id)}
                   >
                     <div className="flex items-start justify-between gap-2">
