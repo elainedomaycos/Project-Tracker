@@ -617,7 +617,7 @@ function HackathonsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-start">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((hack) => {
               const st = STATUS_CONFIG[hack.status ?? "upcoming"] ?? STATUS_CONFIG.upcoming;
               const cat = CATEGORY_MAP[hack.category ?? "hackathon"] ?? CATEGORY_MAP.other;
@@ -627,7 +627,7 @@ function HackathonsPage() {
               const endDate = new Date(hack.end_date);
 
               return (
-                <div key={hack.id} className={`bg-card border border-border rounded-lg overflow-hidden flex flex-col ${expanded ? "" : "h-[240px]"}`}>
+                <div key={hack.id} className="bg-card border border-border rounded-lg overflow-hidden flex flex-col">
                   <div
                     className="p-4 cursor-pointer hover:bg-surface-2/50 transition-colors flex-1 flex flex-col min-h-[240px]"
                     onClick={() => setExpandedId(expanded ? null : hack.id)}
