@@ -629,7 +629,7 @@ function HackathonsPage() {
               return (
                 <div key={hack.id} className={`bg-card border rounded-lg flex flex-col ${expanded ? "border-primary ring-1 ring-primary/20" : "border-border"}`}>
                   <div
-                    className="p-4 cursor-pointer hover:bg-surface-2/50 transition-colors flex flex-col h-[240px] overflow-hidden"
+                    className="p-4 cursor-pointer hover:bg-surface-2/50 transition-colors flex flex-col h-[320px] overflow-hidden"
                     onClick={() => setExpandedId(expanded ? null : hack.id)}
                   >
                     <div className="flex items-start justify-between gap-2">
