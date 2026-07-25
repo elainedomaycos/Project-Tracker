@@ -377,10 +377,6 @@ function HackathonsPage() {
     return h.status === filter;
   });
 
-  const expandedHack = expandedId ? filtered.find((h) => h.id === expandedId) : null;
-  const expandedSt = expandedHack ? (STATUS_CONFIG[expandedHack.status ?? "upcoming"] ?? STATUS_CONFIG.upcoming) : null;
-  const expandedCat = expandedHack ? (CATEGORY_MAP[expandedHack.category ?? "hackathon"] ?? CATEGORY_MAP.other) : null;
-
   return (
     <>
       <PageHeader
@@ -621,7 +617,6 @@ function HackathonsPage() {
             </p>
           </div>
         ) : (
-          <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-start">
             {filtered.map((hack) => {
               const st = STATUS_CONFIG[hack.status ?? "upcoming"] ?? STATUS_CONFIG.upcoming;
@@ -747,92 +742,82 @@ function HackathonsPage() {
                       </span>
                     </button>
                   </div>
+
+                  {expanded && (
+                    <div className="border-t border-border px-4 py-3">
+                      {hack.projects.length > 0 ? (
+                        <div className="space-y-2">
+                          {hack.projects.map((proj) => (
+                            <div
+                              key={proj.id}
+                              className="flex items-center gap-2 p-2 bg-surface-2 border border-border rounded"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-medium truncate">{proj.name}</div>
+                                <div className="text-[9px] text-muted-foreground truncate">by {proj.owner_name}</div>
+                              </div>
+                              {proj.links.length > 0 && (
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {proj.links.map((link) => {
+                                    const cfg = LINK_CONFIG[link.link_type];
+                                    if (!cfg) return null;
+                                    const Icon = cfg.icon;
+                                    return (
+                                      <a
+                                        key={link.link_type}
+                                        href={link.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-muted-foreground hover:text-foreground transition-colors"
+                                      >
+                                        <Icon className="size-3" />
+                                      </a>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground text-center py-4">
+                          No projects linked yet.
+                        </p>
+                      )}
+
+                      <div className="mt-3 pt-3 border-t border-border flex items-center gap-2 flex-wrap">
+                        <button
+                          onClick={() => setLinkProjectModal(hack.id)}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono uppercase text-primary border border-primary/30 hover:bg-primary/5 transition-colors rounded"
+                        >
+                          <Plus className="size-3" />
+                          Link Project
+                        </button>
+                        <button
+                          onClick={() => startEditEvent(hack)}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono uppercase text-info border border-info/30 hover:bg-info/5 transition-colors rounded"
+                        >
+                          <Pencil className="size-3" />
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm("Delete this event? This cannot be undone.")) {
+                              deleteEventMutation.mutate(hack.id);
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono uppercase text-destructive border border-destructive/30 hover:bg-destructive/5 transition-colors rounded"
+                        >
+                          <Trash2 className="size-3" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
-
-          {expandedHack && expandedSt && expandedCat && (
-              <div className="mt-4 bg-card border border-primary ring-1 ring-primary/20 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <h3 className="text-sm font-semibold">{expandedHack.name}</h3>
-                  <span className={`px-1.5 py-0.5 text-[9px] font-mono uppercase border rounded ${expandedSt.color} ${expandedSt.bg}`}>{expandedSt.label}</span>
-                  <span className={`px-1.5 py-0.5 text-[9px] font-mono uppercase border rounded ${expandedCat.color} ${expandedCat.bg}`}>{expandedCat.label}</span>
-                  <button onClick={() => setExpandedId(null)} className="ml-auto text-muted-foreground hover:text-foreground">
-                    <ChevronUp className="size-4" />
-                  </button>
-                </div>
-
-                {expandedHack.projects.length > 0 ? (
-                  <div className="space-y-2">
-                    {expandedHack.projects.map((proj) => (
-                      <div
-                        key={proj.id}
-                        className="flex items-center gap-2 p-2 bg-surface-2 border border-border rounded"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-medium truncate">{proj.name}</div>
-                          <div className="text-[9px] text-muted-foreground truncate">by {proj.owner_name}</div>
-                        </div>
-                        {proj.links.length > 0 && (
-                          <div className="flex items-center gap-1 shrink-0">
-                            {proj.links.map((link) => {
-                              const cfg = LINK_CONFIG[link.link_type];
-                              if (!cfg) return null;
-                              const Icon = cfg.icon;
-                              return (
-                                <a
-                                  key={link.link_type}
-                                  href={link.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-muted-foreground hover:text-foreground transition-colors"
-                                >
-                                  <Icon className="size-3" />
-                                </a>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground text-center py-4">
-                    No projects linked yet.
-                  </p>
-                )}
-
-                <div className="mt-3 pt-3 border-t border-border flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={() => setLinkProjectModal(expandedHack.id)}
-                    className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono uppercase text-primary border border-primary/30 hover:bg-primary/5 transition-colors rounded"
-                  >
-                    <Plus className="size-3" />
-                    Link Project
-                  </button>
-                  <button
-                    onClick={() => startEditEvent(expandedHack)}
-                    className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono uppercase text-info border border-info/30 hover:bg-info/5 transition-colors rounded"
-                  >
-                    <Pencil className="size-3" />
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm("Delete this event? This cannot be undone.")) {
-                        deleteEventMutation.mutate(expandedHack.id);
-                      }
-                    }}
-                    className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono uppercase text-destructive border border-destructive/30 hover:bg-destructive/5 transition-colors rounded"
-                  >
-                    <Trash2 className="size-3" />
-                    Delete
-                  </button>
-                </div>
-              </div>
-          )}
-          </>
         )}
 
         {/* Link project modal */}
