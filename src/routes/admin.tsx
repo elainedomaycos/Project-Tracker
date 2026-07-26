@@ -2,15 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/console";
 import { useAuth } from "@/lib/auth-context";
-import { useProject } from "@/lib/project-context";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Trash2, Shield, Users, Code2, FlaskConical } from "lucide-react";
+import { Users, Shield, Code2, FlaskConical } from "lucide-react";
 import type { UserRole } from "@/lib/auth-context";
 
 type ManagedUser = {
   id: string;
   email: string;
   name: string;
+  display_name: string;
   role: UserRole;
   created_at: string;
 };
@@ -27,12 +27,9 @@ export const Route = createFileRoute("/admin")({
 
 function AdminPage() {
   const { profile, isSuperAdmin } = useAuth();
-  const { developers, qaUsers, addDeveloper, removeDeveloper, addQaUser, removeQaUser } = useProject();
 
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newDev, setNewDev] = useState("");
-  const [newQa, setNewQa] = useState("");
 
   useEffect(() => {
     loadUsers();
@@ -61,8 +58,37 @@ function AdminPage() {
 
     if (!error) {
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
-      if (newRole === "developer" && user.name) addDeveloper(user.name);
-      if (newRole === "qa" && user.name) addQaUser(user.name);
+
+      const userName = user.display_name || user.name;
+      if (!userName) return;
+
+      const { data: devSetting } = await supabase.from("settings").select("value").eq("key", "developers").maybeSingle();
+      const { data: qaSetting } = await supabase.from("settings").select("value").eq("key", "qa_users").maybeSingle();
+      const devList: string[] = devSetting?.value ?? [];
+      const qaList: string[] = qaSetting?.value ?? [];
+
+      if (newRole === "developer") {
+        if (!devList.includes(userName)) {
+          await supabase.from("settings").upsert({ key: "developers", value: [...devList, userName] });
+        }
+        if (qaList.includes(userName)) {
+          await supabase.from("settings").upsert({ key: "qa_users", value: qaList.filter((n) => n !== userName) });
+        }
+      } else if (newRole === "qa") {
+        if (!qaList.includes(userName)) {
+          await supabase.from("settings").upsert({ key: "qa_users", value: [...qaList, userName] });
+        }
+        if (devList.includes(userName)) {
+          await supabase.from("settings").upsert({ key: "developers", value: devList.filter((n) => n !== userName) });
+        }
+      } else {
+        if (devList.includes(userName)) {
+          await supabase.from("settings").upsert({ key: "developers", value: devList.filter((n) => n !== userName) });
+        }
+        if (qaList.includes(userName)) {
+          await supabase.from("settings").upsert({ key: "qa_users", value: qaList.filter((n) => n !== userName) });
+        }
+      }
     }
   }
 
@@ -117,87 +143,36 @@ function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((u) => (
-                      <tr key={u.id} className="border-b border-border last:border-0">
-                        <td className="px-4 py-2 font-medium">{u.name || "—"}</td>
-                        <td className="px-4 py-2 text-muted-foreground">{u.email}</td>
-                        <td className="px-4 py-2">
-                          <select
-                            value={u.role}
-                            onChange={(e) => updateRole(u.id, e.target.value as UserRole)}
-                            className="px-2 py-1 rounded bg-background border border-border text-xs font-medium focus:outline-none focus:border-primary"
-                          >
-                            <option value="super_admin">Super Admin</option>
-                            <option value="developer">Developer</option>
-                            <option value="qa">QA</option>
-                          </select>
-                        </td>
-                        <td className="px-4 py-2 text-right">
-                          <span className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
-                            {roleIcon(u.role)}
-                            {u.role.replace("_", " ")}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {users.map((u) => {
+                      const effectiveRole: UserRole = (u.role as UserRole) || "developer";
+                      return (
+                        <tr key={u.id} className="border-b border-border last:border-0">
+                          <td className="px-4 py-2 font-medium">{u.display_name || u.name || "—"}</td>
+                          <td className="px-4 py-2 text-muted-foreground">{u.email}</td>
+                          <td className="px-4 py-2">
+                            <select
+                              value={effectiveRole}
+                              onChange={(e) => updateRole(u.id, e.target.value as UserRole)}
+                              className="px-2 py-1 rounded bg-background border border-border text-xs font-medium focus:outline-none focus:border-primary"
+                            >
+                              <option value="super_admin">Super Admin</option>
+                              <option value="developer">Developer</option>
+                              <option value="qa">QA</option>
+                            </select>
+                          </td>
+                          <td className="px-4 py-2 text-right">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
+                              {roleIcon(effectiveRole)}
+                              {effectiveRole.replace("_", " ")}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             )}
-          </section>
-
-          {/* Developers List */}
-          <section>
-            <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
-              <Code2 className="size-4" />
-              Developer Names
-            </h2>
-            <div className="bg-surface-2 border border-border rounded-lg p-4 space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {developers.map((dev) => (
-                  <span key={dev} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background border border-border text-xs font-medium">
-                    {dev}
-                    <button onClick={() => removeDeveloper(dev)} className="text-muted-foreground hover:text-destructive">
-                      <Trash2 className="size-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input value={newDev} onChange={(e) => setNewDev(e.target.value)} placeholder="Add developer name" className="flex-1 px-3 py-1.5 rounded-md bg-background border border-border text-sm focus:outline-none focus:border-primary" />
-                <button onClick={() => { addDeveloper(newDev); setNewDev(""); }} disabled={!newDev.trim()} className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-bold hover:brightness-110 disabled:opacity-50 flex items-center gap-1">
-                  <Plus className="size-3.5" />
-                  Add
-                </button>
-              </div>
-            </div>
-          </section>
-
-          {/* QA Users List */}
-          <section>
-            <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
-              <FlaskConical className="size-4" />
-              QA Names
-            </h2>
-            <div className="bg-surface-2 border border-border rounded-lg p-4 space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {qaUsers.map((user) => (
-                  <span key={user} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background border border-border text-xs font-medium">
-                    {user}
-                    <button onClick={() => removeQaUser(user)} className="text-muted-foreground hover:text-destructive">
-                      <Trash2 className="size-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input value={newQa} onChange={(e) => setNewQa(e.target.value)} placeholder="Add QA name" className="flex-1 px-3 py-1.5 rounded-md bg-background border border-border text-sm focus:outline-none focus:border-primary" />
-                <button onClick={() => { addQaUser(newQa); setNewQa(""); }} disabled={!newQa.trim()} className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-bold hover:brightness-110 disabled:opacity-50 flex items-center gap-1">
-                  <Plus className="size-3.5" />
-                  Add
-                </button>
-              </div>
-            </div>
           </section>
         </div>
       </div>

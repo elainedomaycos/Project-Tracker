@@ -47,14 +47,16 @@ function ProgressRing({ pct, size = 100, strokeWidth = 6 }: { pct: number; size?
 }
 
 function ClientPage() {
-  const { projects, tasks, getAnalytics } = useProject();
+  const { projects, tasks, currentProject, getAnalytics } = useProject();
 
-  const totalStats = projects.reduce((acc, p) => {
+  const displayProjects = currentProject ? projects.filter((p) => p.id === currentProject.id) : projects;
+
+  const totalStats = displayProjects.reduce((acc, p) => {
     const a = getAnalytics(p.id);
     return { total: acc.total + a.total, done: acc.done + a.done, doing: acc.doing + a.doing, qa: acc.qa + a.qa, pending: acc.pending + a.pending };
   }, { total: 0, done: 0, doing: 0, qa: 0, pending: 0 });
 
-  if (projects.length === 0) {
+  if (displayProjects.length === 0) {
     return (
       <>
         <PageHeader crumbs={[{ label: "Task Tracker" }, { label: "Client Portal" }]} />
@@ -74,8 +76,8 @@ function ClientPage() {
   return (
     <>
       <PageHeader
-        crumbs={[{ label: "Task Tracker" }, { label: "Client Portal" }]}
-        status={{ label: `${projects.length} project${projects.length > 1 ? "s" : ""} · ${totalStats.done}/${totalStats.total} tasks done`, tone: "info" }}
+        crumbs={[{ label: "Task Tracker" }, { label: currentProject?.name ?? "Client Portal" }]}
+        status={{ label: `${displayProjects.length} project${displayProjects.length > 1 ? "s" : ""} · ${totalStats.done}/${totalStats.total} tasks done`, tone: "info" }}
       />
 
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
@@ -99,7 +101,7 @@ function ClientPage() {
         </div>
 
         {/* Per-Project Cards */}
-        {projects.map((p) => {
+        {displayProjects.map((p) => {
           const a = getAnalytics(p.id);
           const health = getProjectHealth(a.overallProgress);
           const projectTasks = tasks.filter((t) => t.projectId === p.id);

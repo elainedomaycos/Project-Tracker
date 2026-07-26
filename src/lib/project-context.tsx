@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { readCache, writeCache } from "@/lib/local-cache";
 
@@ -54,7 +54,7 @@ type ProjectContextType = {
   developers: string[];
   qaUsers: string[];
   loading: boolean;
-  setCurrentProject: (id: string) => void;
+  setCurrentProject: (id: string | null) => void;
   setCurrentView: (v: AppView) => void;
   setCurrentDeveloper: (name: string) => void;
   addProject: (data: { name: string; clientName: string; endUsers: string[]; modules: string[] }) => void;
@@ -158,6 +158,17 @@ function fromDbProject(r: any): Project {
   };
 }
 
+function getInitialProject(projects: Project[]): Project | null {
+  if (typeof window === "undefined") return projects[0] ?? null;
+  const saved = localStorage.getItem("selected-project-id");
+  if (saved === "__all__") return null;
+  if (saved) {
+    const found = projects.find((p) => p.id === saved);
+    if (found) return found;
+  }
+  return projects[0] ?? null;
+}
+
 const ProjectContext = createContext<ProjectContextType | null>(null);
 
 function db() { return supabase as any; }
@@ -165,7 +176,7 @@ function db() { return supabase as any; }
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>(DEFAULT_PROJECTS);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [currentProject, setCurrentProjectState] = useState<Project | null>(null);
+  const [currentProject, setCurrentProjectState] = useState<Project | null>(() => getInitialProject(DEFAULT_PROJECTS));
   const [currentView, setCurrentView] = useState<AppView>("pm");
   const [currentDeveloper, setCurrentDeveloper] = useState("");
   const [developers, setDeveloperState] = useState<string[]>(DEFAULT_DEVELOPERS);
@@ -184,28 +195,21 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
       try {
-        const [projRes, taskRes, devRes, qaRes, profilesRes] = await Promise.all([
+        const [projRes, taskRes, devRes, qaRes] = await Promise.all([
           db().from("projects").select("*"),
           db().from("tasks").select("*"),
           db().from("settings").select("value").eq("key", "developers").single(),
           db().from("settings").select("value").eq("key", "qa_users").single(),
-          db().from("profiles").select("name, role"),
         ]);
         if (projRes.data?.length) setProjects(projRes.data.map(fromDbProject));
         if (taskRes.data) setTasks(taskRes.data.map(fromDbTask));
         const settingsDevs: string[] = devRes.data?.value ?? [];
         const settingsQas: string[] = qaRes.data?.value ?? [];
-        const profileDevs = (profilesRes.data ?? [])
-          .filter((p: any) => p.role === "developer" && p.name)
-          .map((p: any) => p.name as string);
-        const profileQas = (profilesRes.data ?? [])
-          .filter((p: any) => p.role === "qa" && p.name)
-          .map((p: any) => p.name as string);
-        if (settingsDevs.length || profileDevs.length) {
-          setDeveloperState((prev) => [...new Set([...prev, ...settingsDevs, ...profileDevs])]);
+        if (settingsDevs.length) {
+          setDeveloperState(settingsDevs);
         }
-        if (settingsQas.length || profileQas.length) {
-          setQaState((prev) => [...new Set([...prev, ...settingsQas, ...profileQas])]);
+        if (settingsQas.length) {
+          setQaState(settingsQas);
         }
       } catch (e) {
         console.warn("Failed to load from Supabase, using defaults", e);
@@ -223,17 +227,32 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     writeCache<CachedProjectData>("project-data", { projects, tasks, developers, qaUsers });
   }, [projects, tasks, developers, qaUsers, loading]);
 
+  // When fresh projects load from Supabase, re-validate the selection
+  const prevProjectsLen = useRef(projects.length);
   useEffect(() => {
-    if (projects.length > 0) {
-      if (!currentProject || !projects.find((p) => p.id === currentProject.id)) {
-        setCurrentProjectState(projects[0]);
+    if (prevProjectsLen.current === projects.length) return;
+    prevProjectsLen.current = projects.length;
+    const saved = localStorage.getItem("selected-project-id");
+    if (saved === "__all__") {
+      setCurrentProjectState(null);
+    } else if (saved && projects.find((p) => p.id === saved)) {
+      setCurrentProjectState(projects.find((p) => p.id === saved)!);
+    } else if (!projects.find((p) => p.id === currentProject?.id)) {
+      setCurrentProjectState(projects[0] ?? null);
+    }
+  }, [projects]);
+
+  function setCurrentProject(id: string | null) {
+    if (id === null || id === "__all__") {
+      setCurrentProjectState(null);
+      localStorage.setItem("selected-project-id", "__all__");
+    } else {
+      const found = projects.find((p) => p.id === id);
+      if (found) {
+        setCurrentProjectState(found);
+        localStorage.setItem("selected-project-id", found.id);
       }
     }
-  }, [projects, currentProject]);
-
-  function setCurrentProject(id: string) {
-    const found = projects.find((p) => p.id === id);
-    if (found) setCurrentProjectState(found);
   }
 
   function addProject(data: { name: string; clientName: string; endUsers: string[]; modules: string[] }) {
@@ -246,6 +265,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     };
     setProjects((prev) => [...prev, p]);
     setCurrentProjectState(p);
+    localStorage.setItem("selected-project-id", p.id);
     db().from("projects").insert({
       id, name: data.name, prefix, created_at: p.createdAt,
       client_name: data.clientName, end_users: data.endUsers, modules: data.modules,
@@ -257,7 +277,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setTasks((prev) => prev.filter((t) => t.projectId !== id));
     if (currentProject?.id === id) {
       const remaining = projects.filter((p) => p.id !== id);
-      setCurrentProjectState(remaining[0] ?? null);
+      const next = remaining[0] ?? null;
+      setCurrentProjectState(next);
+      localStorage.setItem("selected-project-id", next ? next.id : "__all__");
     }
     db().from("tasks").delete().eq("project_id", id).then(() => {}).catch(() => {});
     db().from("projects").delete().eq("id", id).then(() => {}).catch(() => {});

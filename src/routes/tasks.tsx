@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/console";
 import { useState } from "react";
 import { useProject, type Task, type TaskStatus, type QaStatus } from "@/lib/project-context";
 import { useAuth } from "@/lib/auth-context";
-import { Plus, X, Search, GitBranch, Copy, CheckCircle2, Clock, AlertTriangle, FileCheck, Users, Puzzle } from "lucide-react";
+import { Plus, X, Search, GitBranch, Copy, CheckCircle2, Clock, AlertTriangle, FileCheck, Users, Puzzle, ArrowUpDown } from "lucide-react";
 
 export const Route = createFileRoute("/tasks")({
   head: () => ({
@@ -54,6 +54,11 @@ function TasksPage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<TaskStatus | "all">("all");
+  const [filterDev, setFilterDev] = useState<string>("all");
+  const [filterPriority, setFilterPriority] = useState<string>("all");
+  const [filterField, setFilterField] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"id" | "priority" | "status" | "dueDate" | "developer">("id");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "", description: "", developer: "", field: "", endUser: "", module: "",
@@ -61,19 +66,64 @@ function TasksPage() {
     dueDate: "", priority: "medium" as Task["priority"],
   });
 
-  const pid = currentProject?.id ?? projects[0]?.id ?? "";
-  const currentProj = projects.find((p) => p.id === pid);
-  const tasks = getProjectTasks(pid);
-  const analytics = getAnalytics(pid);
+  const pid = currentProject?.id ?? null;
+  const currentProj = pid ? projects.find((p) => p.id === pid) : null;
+  const tasks = pid ? getProjectTasks(pid) : useProject().tasks;
+  const analytics = pid ? getAnalytics(pid) : {
+    total: tasks.length,
+    done: tasks.filter((t) => t.status === "done").length,
+    qa: tasks.filter((t) => t.status === "qa").length,
+    doing: tasks.filter((t) => t.status === "doing").length,
+    pending: tasks.filter((t) => t.status === "pending").length,
+    overallProgress: tasks.length > 0 ? Math.round((tasks.filter((t) => t.status === "done").length / tasks.length) * 100) : 0,
+    devProgress: [],
+    fieldProgress: [],
+    qaPassed: 0,
+    qaFailed: 0,
+    qaWaiting: 0,
+  };
 
-  const filtered = tasks.filter((t) => {
-    if (filterStatus !== "all" && t.status !== filterStatus) return false;
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return t.taskId.toLowerCase().includes(q) ||
-      t.title.toLowerCase().includes(q) ||
-      t.developer.toLowerCase().includes(q);
-  });
+  const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+  const STATUS_ORDER: Record<string, number> = { doing: 0, pending: 1, qa: 2, done: 3 };
+
+  const filtered = tasks
+    .filter((t) => {
+      if (filterStatus !== "all" && t.status !== filterStatus) return false;
+      if (filterDev !== "all" && t.developer !== filterDev) return false;
+      if (filterPriority !== "all" && t.priority !== filterPriority) return false;
+      if (filterField !== "all" && t.field !== filterField) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        if (!t.taskId.toLowerCase().includes(q) && !t.title.toLowerCase().includes(q) && !t.developer.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      let cmp = 0;
+      switch (sortBy) {
+        case "id": {
+          const parseId = (id: string) => { const parts = id.split("-").slice(1); return parts.reduce((acc, p) => acc * 1000 + (parseInt(p, 10) || 0), 0); };
+          cmp = parseId(a.taskId) - parseId(b.taskId);
+          break;
+        }
+        case "priority":
+          cmp = (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99);
+          break;
+        case "status":
+          cmp = (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99);
+          break;
+        case "dueDate":
+          cmp = (a.dueDate || "9999").localeCompare(b.dueDate || "9999");
+          break;
+        case "developer":
+          cmp = (a.developer || "zzz").localeCompare(b.developer || "zzz");
+          break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
+  const uniqueDevs = [...new Set(tasks.map((t) => t.developer).filter(Boolean))].sort();
+  const uniqueFields = [...new Set(tasks.map((t) => t.field).filter(Boolean))].sort();
 
   function handleCreate() {
     if (!form.title.trim() || !pid) return;
@@ -116,10 +166,10 @@ function TasksPage() {
   return (
     <>
       <PageHeader
-        crumbs={[{ label: "Task Tracker" }, { label: currentProject?.name ?? "Tasks" }]}
+        crumbs={[{ label: "Task Tracker" }, { label: currentProject?.name ?? "All Projects" }]}
         status={{ label: `${tasks.length} tasks`, tone: "info" }}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
               <Search className="size-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
@@ -129,18 +179,72 @@ function TasksPage() {
                 className="w-44 pl-7 pr-3 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
               />
             </div>
+            <div className="flex items-center gap-1">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
+              >
+                <option value="id">Sort: ID</option>
+                <option value="priority">Sort: Priority</option>
+                <option value="status">Sort: Status</option>
+                <option value="dueDate">Sort: Due Date</option>
+                <option value="developer">Sort: Developer</option>
+              </select>
+              <button
+                onClick={() => setSortDir((d) => d === "asc" ? "desc" : "asc")}
+                className="px-1.5 py-1.5 rounded-md bg-surface-2 border border-border text-xs hover:bg-surface-2/80 transition-colors"
+                title={sortDir === "asc" ? "Ascending" : "Descending"}
+              >
+                <ArrowUpDown className="size-3" />
+              </button>
+            </div>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value as TaskStatus | "all")}
-              className="px-2.5 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
+              className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
             >
               <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="doing">Doing</option>
-              <option value="qa">QA</option>
-              <option value="done">Done</option>
+              {STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
             </select>
-            {isSuperAdmin && (
+            {uniqueDevs.length > 0 && (
+              <select
+                value={filterDev}
+                onChange={(e) => setFilterDev(e.target.value)}
+                className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
+              >
+                <option value="all">All Devs</option>
+                {uniqueDevs.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            )}
+            <select
+              value={filterPriority}
+              onChange={(e) => setFilterPriority(e.target.value)}
+              className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
+            >
+              <option value="all">All Priority</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+            {uniqueFields.length > 0 && (
+              <select
+                value={filterField}
+                onChange={(e) => setFilterField(e.target.value)}
+                className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
+              >
+                <option value="all">All Fields</option>
+                {uniqueFields.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            )}
+            {isSuperAdmin && pid && (
               <button
                 onClick={() => setShowNewModal(true)}
                 className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 flex items-center gap-1.5"
@@ -194,6 +298,7 @@ function TasksPage() {
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="bg-surface-2 border-b border-border">
+                {!pid && <Th>Project</Th>}
                 <Th>ID</Th>
                 <Th>End User</Th>
                 <Th>Module</Th>
@@ -213,6 +318,11 @@ function TasksPage() {
                   onClick={() => setSelectedTask(t)}
                   className="border-b border-border hover:bg-surface-2/40 transition-colors cursor-pointer"
                 >
+                  {!pid && (
+                    <Td>
+                      <span className="text-[10px] font-mono text-muted-foreground">{projects.find((p) => p.id === t.projectId)?.prefix ?? t.projectId}</span>
+                    </Td>
+                  )}
                   <Td>
                     <div className="flex items-center gap-1.5">
                       <span className="font-mono text-xs font-bold text-primary">{t.taskId}</span>
@@ -314,8 +424,8 @@ function TasksPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="text-center py-12 text-sm text-muted-foreground">
-                    {search || filterStatus !== "all" ? "No tasks match your filters." : "No tasks yet. Create your first task!"}
+                  <td colSpan={!pid ? 11 : 10} className="text-center py-12 text-sm text-muted-foreground">
+                    {search || filterStatus !== "all" || filterDev !== "all" || filterPriority !== "all" || filterField !== "all" ? "No tasks match your filters." : "No tasks yet. Create your first task!"}
                   </td>
                 </tr>
               )}
@@ -329,7 +439,7 @@ function TasksPage() {
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40" onClick={() => setShowNewModal(false)}>
           <div className="w-full max-w-lg bg-card border border-border rounded-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <span className="text-sm font-semibold">New Task · {currentProject?.name} · <span className="text-primary font-mono">{nextTaskId(pid)}</span></span>
+              <span className="text-sm font-semibold">New Task · {currentProj?.name ?? "All Projects"} · <span className="text-primary font-mono">{nextTaskId(pid ?? "")}</span></span>
               <button onClick={() => setShowNewModal(false)} className="p-1 rounded hover:bg-surface-2 text-muted-foreground">
                 <X className="size-4" />
               </button>

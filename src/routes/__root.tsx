@@ -23,7 +23,6 @@ import {
   Shield,
   LogOut,
   User as UserIcon,
-  Users,
   UserCircle,
   Trophy,
 } from "lucide-react";
@@ -138,7 +137,6 @@ const NAV_ITEMS: readonly NavItem[] = [
   { to: "/developer", label: "Developer", icon: Code2, roles: ["super_admin", "developer", "qa"] },
   { to: "/qa", label: "QA Review", icon: FlaskConical, roles: ["super_admin", "developer", "qa"] },
   { to: "/client", label: "Client Portal", icon: ExternalLink, roles: ["super_admin", "developer", "qa"] },
-  { to: "/team", label: "Team", icon: Users, roles: ["super_admin", "developer", "qa"] },
 ];
 
 const HACKATHON_NAV: readonly NavItem[] = [
@@ -310,7 +308,7 @@ function AppShell({ pathname, queryClient }: { pathname: string; queryClient: Qu
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-medium truncate">{profile.name || "User"}</div>
-                <div className="text-[9px] font-mono text-muted-foreground capitalize truncate">{profile.role.replace("_", " ")}</div>
+                <div className="text-[9px] font-mono text-muted-foreground capitalize truncate">{(profile.role || "developer").replace("_", " ")}</div>
               </div>
             </Link>
           )}
@@ -353,10 +351,11 @@ function ProjectSelector() {
     <div className="space-y-1.5">
       <div className="relative">
         <select
-          value={currentProject?.id ?? ""}
-          onChange={(e) => setCurrentProject(e.target.value)}
+          value={currentProject?.id ?? "__all__"}
+          onChange={(e) => setCurrentProject(e.target.value === "__all__" ? null : e.target.value)}
           className="w-full appearance-none px-3 py-1.5 rounded-md bg-surface-2 border border-border text-xs font-medium focus:outline-none focus:border-primary cursor-pointer"
         >
+          <option value="__all__">All Projects</option>
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}

@@ -9,6 +9,7 @@ export type Profile = {
   id: string;
   email: string;
   name: string;
+  display_name: string;
   role: UserRole;
 };
 
@@ -128,11 +129,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let finalProfile: Profile;
 
     if (data) {
+      const authName = user?.user_metadata?.display_name || user?.user_metadata?.full_name || "";
+      const profileName = data.display_name || authName || data.name || email.split("@")[0];
       if (isSuper && data.role !== "super_admin") {
-        finalProfile = { ...data, role: "super_admin" as const } as Profile;
-        await db().from("profiles").upsert(finalProfile);
+        finalProfile = { ...data, name: profileName, display_name: profileName, role: "super_admin" as const } as Profile;
+        await db().from("profiles").upsert({ id: userId, display_name: profileName, role: "super_admin", email });
       } else {
-        finalProfile = data as Profile;
+        finalProfile = { ...data, name: profileName, display_name: profileName, role: (data.role || "developer") as UserRole } as Profile;
+        if (!data.display_name || data.display_name.trim() === "") {
+          await db().from("profiles").upsert({ id: userId, display_name: profileName });
+        }
       }
     } else {
       let role: UserRole = isSuper ? "super_admin" : "developer";
@@ -152,9 +158,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // invitations table may not exist
         }
       }
-      finalProfile = { id: userId, email, name: inviteName, role };
+      const authName = user?.user_metadata?.display_name || user?.user_metadata?.full_name || "";
+      const displayName = inviteName || authName || email.split("@")[0];
+      finalProfile = { id: userId, email, name: displayName, display_name: displayName, role };
       try {
-        await db().from("profiles").upsert(finalProfile);
+        await db().from("profiles").upsert({ id: userId, display_name: displayName, role, email });
       } catch (e) {
         console.warn("[Auth] failed to create profile:", e);
       }
@@ -175,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signUp(email: string, password: string, name: string): Promise<string | null> {
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: name } } });
       if (error) return error.message;
       if (data.user) {
         const isSuper = SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
@@ -192,15 +200,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             profileName = invite.name;
           }
         }
-        const newProfile: Profile = { id: data.user.id, email, name: profileName, role };
-        await db().from("profiles").upsert(newProfile);
+        const displayName = profileName || email.split("@")[0];
+        const newProfile: Profile = { id: data.user.id, email, name: displayName, display_name: displayName, role };
+        await db().from("profiles").upsert({ id: data.user.id, display_name: displayName, role, email });
         try {
           if (role === "developer" || role === "qa") {
             const key = role === "developer" ? "developers" : "qa_users";
             const { data: existing } = await db().from("settings").select("value").eq("key", key).maybeSingle();
             const list: string[] = existing?.value ?? [];
-            if (!list.includes(profileName)) {
-              await db().from("settings").upsert({ key, value: [...list, profileName] });
+            if (!list.includes(displayName)) {
+              await db().from("settings").upsert({ key, value: [...list, displayName] });
             }
           }
         } catch { /* settings may not exist yet */ }

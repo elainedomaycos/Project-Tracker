@@ -18,8 +18,11 @@ export type Database = {
           bio: string | null
           created_at: string
           display_name: string
+          email: string
           id: string
           links: Json | null
+          name: string
+          role: string
           role_title: string | null
           skills: string[] | null
           team: string | null
@@ -29,9 +32,12 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
-          display_name: string
+          display_name?: string
+          email?: string
           id: string
           links?: Json | null
+          name?: string
+          role?: string
           role_title?: string | null
           skills?: string[] | null
           team?: string | null
@@ -42,8 +48,11 @@ export type Database = {
           bio?: string | null
           created_at?: string
           display_name?: string
+          email?: string
           id?: string
           links?: Json | null
+          name?: string
+          role?: string
           role_title?: string | null
           skills?: string[] | null
           team?: string | null

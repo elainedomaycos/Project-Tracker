@@ -20,18 +20,20 @@ const STATUS_LABELS = { pending: "Pending", doing: "Doing", qa: "QA", done: "Don
 function Dashboard() {
   const navigate = useNavigate();
   const { projects, tasks, currentProject, getAnalytics } = useProject();
-  const totalTasks = tasks.length;
-  const totalDone = tasks.filter((t) => t.status === "done").length;
-  const overdue = tasks.filter((t) => t.dueDate && t.dueDate < new Date().toISOString().slice(0, 10) && t.status !== "done").length;
+
+  const viewTasks = currentProject ? tasks.filter((t) => t.projectId === currentProject.id) : tasks;
+  const totalTasks = viewTasks.length;
+  const totalDone = viewTasks.filter((t) => t.status === "done").length;
+  const overdue = viewTasks.filter((t) => t.dueDate && t.dueDate < new Date().toISOString().slice(0, 10) && t.status !== "done").length;
 
   const statusData = ["pending", "doing", "qa", "done"].map((s) => ({
     name: STATUS_LABELS[s as keyof typeof STATUS_LABELS],
-    value: tasks.filter((t) => t.status === s).length,
+    value: viewTasks.filter((t) => t.status === s).length,
     color: STATUS_COLORS[s as keyof typeof STATUS_COLORS],
   }));
 
   const devMap = new Map<string, { done: number; total: number }>();
-  tasks.forEach((t) => {
+  viewTasks.forEach((t) => {
     if (!t.developer) return;
     const e = devMap.get(t.developer) ?? { done: 0, total: 0 };
     e.total++;
@@ -40,7 +42,7 @@ function Dashboard() {
   });
   const devData = Array.from(devMap.entries()).map(([name, d]) => ({ name, done: d.done, pending: d.total - d.done }));
 
-  const recentTasks = [...tasks]
+  const recentTasks = [...viewTasks]
     .filter((t) => t.status !== "done")
     .sort((a, b) => {
       const dateA = a.startDate || a.dueDate || "";
@@ -49,10 +51,12 @@ function Dashboard() {
     })
     .slice(0, 5);
 
+  const displayProjects = currentProject ? projects.filter((p) => p.id === currentProject.id) : projects;
+
   return (
     <>
       <PageHeader
-        crumbs={[{ label: "Task Tracker" }, { label: "Dashboard" }]}
+        crumbs={[{ label: "Task Tracker" }, { label: currentProject?.name ?? "Dashboard" }]}
         status={{ label: `${totalTasks} tasks · ${overdue} overdue`, tone: overdue > 0 ? "warn" : "info" }}
       />
 
@@ -152,7 +156,7 @@ function Dashboard() {
         <div>
           <h2 className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-4">Projects</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {projects.map((p) => {
+            {displayProjects.map((p) => {
               const a = getAnalytics(p.id);
               return (
                 <div
@@ -220,18 +224,31 @@ function Dashboard() {
           <div className="bg-card border border-border rounded-lg p-5">
             <h2 className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-4">Developer Workload</h2>
             <div className="space-y-4">
-              {currentProject && getAnalytics(currentProject.id).devProgress.length > 0 ? (
-                getAnalytics(currentProject.id).devProgress.map((d) => (
-                  <div key={d.name}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium">{d.name}</span>
-                      <span className={`text-[10px] font-mono ${d.pct >= 80 ? "text-success" : d.pct >= 50 ? "text-warning" : "text-destructive"}`}>{d.pct}%</span>
-                    </div>
-                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full ${d.pct >= 80 ? "bg-success" : d.pct >= 50 ? "bg-warning" : "bg-destructive"}`} style={{ width: `${d.pct}%` }} />
-                    </div>
-                  </div>
-                ))
+              {devData.length > 0 ? (
+                (() => {
+                  const devWorkload = new Map<string, { done: number; total: number }>();
+                  viewTasks.forEach((t) => {
+                    if (!t.developer) return;
+                    const e = devWorkload.get(t.developer) ?? { done: 0, total: 0 };
+                    e.total++;
+                    if (t.status === "done") e.done++;
+                    devWorkload.set(t.developer, e);
+                  });
+                  return Array.from(devWorkload.entries())
+                    .map(([name, d]) => ({ name, done: d.done, total: d.total, pct: d.total > 0 ? Math.round((d.done / d.total) * 100) : 0 }))
+                    .sort((a, b) => b.pct - a.pct)
+                    .map((d) => (
+                      <div key={d.name}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-medium">{d.name}</span>
+                          <span className={`text-[10px] font-mono ${d.pct >= 80 ? "text-success" : d.pct >= 50 ? "text-warning" : "text-destructive"}`}>{d.pct}%</span>
+                        </div>
+                        <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${d.pct >= 80 ? "bg-success" : d.pct >= 50 ? "bg-warning" : "bg-destructive"}`} style={{ width: `${d.pct}%` }} />
+                        </div>
+                      </div>
+                    ));
+                })()
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-8">No developer data yet.</p>
               )}
