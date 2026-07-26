@@ -149,6 +149,10 @@ function DeveloperPage() {
 
                   <h3 className="text-sm font-medium truncate">{t.title}</h3>
 
+                  {t.description && (
+                    <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{t.description}</p>
+                  )}
+
                   <div className="mt-auto pt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
                     {t.field && <span>{t.field}</span>}
                     {t.field && t.dueDate && <span>·</span>}
