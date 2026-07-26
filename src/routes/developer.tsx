@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/console";
 import { useState } from "react";
 import { useProject, type TaskStatus } from "@/lib/project-context";
 import { useAuth } from "@/lib/auth-context";
-import { CheckCircle2, Clock, ArrowRight, Users, Plus, X, ArrowUpDown } from "lucide-react";
+import { CheckCircle2, Clock, ArrowRight, Users, Plus, X, ArrowUpDown, ChevronDown, ChevronUp, GitBranch, Calendar, User, Box, MessageSquare, AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/developer")({
   head: () => ({
@@ -20,6 +20,7 @@ function DeveloperPage() {
   const { profile, isSuperAdmin, isQa } = useAuth();
   const [filterDev, setFilterDev] = useState("all");
   const [sortBy, setSortBy] = useState<"default" | "id-asc" | "id-desc">("default");
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [showUsers, setShowUsers] = useState(false);
   const [newDev, setNewDev] = useState("");
   const [newQa, setNewQa] = useState("");
@@ -101,66 +102,138 @@ function DeveloperPage() {
           {activeTasks.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">No tasks found.</p>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {activeTasks.map((t) => (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 items-start">
+              {activeTasks.map((t) => {
+                const expanded = expandedTaskId === t.id;
+                const PRIORITY_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
+                  low: { color: "text-muted-foreground", bg: "bg-muted", label: "Low" },
+                  medium: { color: "text-info", bg: "bg-info/10", label: "Medium" },
+                  high: { color: "text-warning", bg: "bg-warning/10", label: "High" },
+                  critical: { color: "text-destructive", bg: "bg-destructive/10", label: "Critical" },
+                };
+                const pr = PRIORITY_CONFIG[t.priority] ?? PRIORITY_CONFIG.low;
+                return (
                 <div
                   key={t.id}
-                  className="bg-card border border-border rounded-lg p-4 flex flex-col hover:border-primary/40 transition-colors"
+                  className={`bg-card border rounded-lg flex flex-col hover:border-primary/40 transition-colors ${expanded ? "border-primary ring-1 ring-primary/20" : "border-border"}`}
                 >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <span className="font-mono text-[10px] text-primary font-bold">{t.taskId}</span>
-                    <div className="shrink-0">
-                      {isQa || (!isSuperAdmin && t.developer !== profile?.name) ? (
-                        <span className="px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground bg-surface-2 rounded">
-                          {t.status === "pending" ? "Pending" : t.status === "doing" ? "In Progress" : t.status === "qa" ? "In QA" : "Done"}
-                        </span>
-                      ) : (
-                        <>
-                          {t.status === "pending" && (
-                            <button
-                              onClick={() => handleStatusChange(t.id, "doing")}
-                              className="px-2 py-1 bg-primary text-primary-foreground text-[9px] font-bold rounded hover:brightness-110 flex items-center gap-1"
-                            >
-                              <Clock className="size-2.5" />
-                              Start
-                            </button>
-                          )}
-                          {t.status === "doing" && (
-                            <button
-                              onClick={() => handleStatusChange(t.id, "qa")}
-                              className="px-2 py-1 bg-info text-white text-[9px] font-bold rounded hover:brightness-110 flex items-center gap-1"
-                            >
-                              <ArrowRight className="size-2.5" />
-                              Move to QA
-                            </button>
-                          )}
-                          {t.status === "qa" && (
-                            <span className="px-1.5 py-0.5 text-[9px] font-mono text-info bg-info/10 rounded">In QA</span>
-                          )}
-                          {t.status === "done" && (
-                            <span className="flex items-center gap-1 text-[9px] font-mono text-success">
-                              <CheckCircle2 className="size-2.5" /> Done
-                            </span>
-                          )}
-                        </>
-                      )}
+                  <div
+                    className="p-4 cursor-pointer hover:bg-surface-2/50 transition-colors flex flex-col h-[320px] overflow-hidden"
+                    onClick={() => setExpandedTaskId(expanded ? null : t.id)}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <span className="font-mono text-[10px] text-primary font-bold">{t.taskId}</span>
+                      <div className="shrink-0 flex items-center gap-1">
+                        <span className={`px-1.5 py-0.5 text-[9px] font-mono uppercase border rounded ${pr.color} ${pr.bg}`}>{pr.label}</span>
+                        {expanded ? (
+                          <ChevronUp className="size-3.5 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="size-3.5 text-muted-foreground" />
+                        )}
+                      </div>
+                    </div>
+
+                    <h3 className="text-sm font-medium truncate">{t.title}</h3>
+
+                    {t.description && (
+                      <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{t.description}</p>
+                    )}
+
+                    <div className="mt-auto pt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
+                      {t.field && <span>{t.field}</span>}
+                      {t.field && t.dueDate && <span>·</span>}
+                      {t.dueDate && <span>Due: {t.dueDate}</span>}
+                      <span className="ml-auto truncate text-[9px]">{t.developer}</span>
                     </div>
                   </div>
 
-                  <h3 className="text-sm font-medium truncate">{t.title}</h3>
-
-                  {t.description && (
-                    <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{t.description}</p>
+                  {expanded && (
+                    <div className="border-t border-border px-4 py-3 space-y-2">
+                      <div className="grid grid-cols-2 gap-2 text-[10px]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-muted-foreground uppercase font-mono">Status</span>
+                          <span className="font-medium">{t.status === "pending" ? "Pending" : t.status === "doing" ? "In Progress" : t.status === "qa" ? "In QA" : "Done"}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-muted-foreground uppercase font-mono">QA</span>
+                          <span className="font-medium capitalize">{t.qaStatus}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <User className="size-3 shrink-0 text-muted-foreground" />
+                          <span className="font-medium">{t.developer}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Box className="size-3 shrink-0 text-muted-foreground" />
+                          <span className="font-medium">{t.field || "—"}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <User className="size-3 shrink-0 text-muted-foreground" />
+                          <span className="font-medium">{t.endUser || "—"}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Box className="size-3 shrink-0 text-muted-foreground" />
+                          <span className="font-medium">{t.module || "—"}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="size-3 shrink-0 text-muted-foreground" />
+                          <span className="font-medium">{t.startDate || "—"}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="size-3 shrink-0 text-muted-foreground" />
+                          <span className="font-medium">{t.dueDate || "—"}</span>
+                        </div>
+                        {t.branch && (
+                          <div className="flex items-center gap-1.5 col-span-2">
+                            <GitBranch className="size-3 shrink-0 text-muted-foreground" />
+                            <span className="font-mono text-[9px]">{t.branch}</span>
+                          </div>
+                        )}
+                        {t.commit && (
+                          <div className="flex items-center gap-1.5 col-span-2">
+                            <GitBranch className="size-3 shrink-0 text-muted-foreground" />
+                            <span className="font-mono text-[9px]">{t.commit}</span>
+                          </div>
+                        )}
+                      </div>
+                      {t.description && (
+                        <div className="pt-2 border-t border-border">
+                          <p className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Description</p>
+                          <p className="text-[11px] text-muted-foreground whitespace-pre-wrap">{t.description}</p>
+                        </div>
+                      )}
+                      {t.remarks && (
+                        <div className="pt-2 border-t border-border">
+                          <p className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Remarks</p>
+                          <p className="text-[11px] text-muted-foreground whitespace-pre-wrap">{t.remarks}</p>
+                        </div>
+                      )}
+                      <div className="pt-2 border-t border-border flex items-center gap-2 flex-wrap">
+                        {(isQa || (!isSuperAdmin && t.developer === profile?.name)) && (
+                          <>
+                            {t.status === "pending" && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleStatusChange(t.id, "doing"); }}
+                                className="px-2 py-1 bg-primary text-primary-foreground text-[9px] font-bold rounded hover:brightness-110 flex items-center gap-1"
+                              >
+                                <Clock className="size-2.5" /> Start
+                              </button>
+                            )}
+                            {t.status === "doing" && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleStatusChange(t.id, "qa"); }}
+                                className="px-2 py-1 bg-info text-white text-[9px] font-bold rounded hover:brightness-110 flex items-center gap-1"
+                              >
+                                <ArrowRight className="size-2.5" /> Move to QA
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
                   )}
-
-                  <div className="mt-auto pt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
-                    {t.field && <span>{t.field}</span>}
-                    {t.field && t.dueDate && <span>·</span>}
-                    {t.dueDate && <span>Due: {t.dueDate}</span>}
-                    <span className="ml-auto truncate text-[9px]">{t.developer}</span>
-                  </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           )}
         </div>
