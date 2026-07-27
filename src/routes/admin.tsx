@@ -31,6 +31,7 @@ function AdminPage() {
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [nameVersions, setNameVersions] = useState<Record<string, number>>({});
+  const [nameErrors, setNameErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     loadUsers();
@@ -57,7 +58,9 @@ function AdminPage() {
 
     const duplicate = users.some((u) => u.id !== userId && u.display_name?.toLowerCase() === trimmed.toLowerCase());
     if (duplicate) {
+      setNameErrors((prev) => ({ ...prev, [userId]: "Name already taken" }));
       setNameVersions((prev) => ({ ...prev, [userId]: (prev[userId] ?? 0) + 1 }));
+      setTimeout(() => setNameErrors((prev) => { const next = { ...prev }; delete next[userId]; return next; }), 3000);
       return;
     }
 
@@ -194,6 +197,9 @@ function AdminPage() {
                               onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                               className="w-full px-2 py-1 bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-surface-2 rounded text-sm font-medium focus:outline-none"
                             />
+                            {nameErrors[u.id] && (
+                              <span className="text-[10px] text-destructive mt-0.5 block">{nameErrors[u.id]}</span>
+                            )}
                           </td>
                           <td className="px-4 py-2 text-muted-foreground">{u.email}</td>
                           <td className="px-4 py-2">
