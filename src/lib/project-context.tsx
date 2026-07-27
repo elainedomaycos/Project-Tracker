@@ -95,13 +95,16 @@ const DEFAULT_PROJECTS: Project[] = [
 const DEFAULT_DEVELOPERS = ["Rachel", "Mcdoel", "Alvin", "John", "Elaine", "Carl"];
 
 function dedupeNames(list: string[]): string[] {
-  const seen = new Set<string>();
-  return list.filter((n) => {
+  const map = new Map<string, string>();
+  for (const n of list) {
     const key = n.trim().toLowerCase();
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+    if (!key) continue;
+    const existing = map.get(key);
+    if (!existing || n.trim().length < existing.length) {
+      map.set(key, n.trim());
+    }
+  }
+  return [...map.values()];
 }
 
 const PIN_MAP: Record<string, string> = {
@@ -216,10 +219,18 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         const settingsDevs: string[] = devRes.data?.value ?? [];
         const settingsQas: string[] = qaRes.data?.value ?? [];
         if (settingsDevs.length) {
-          setDeveloperState(dedupeNames(settingsDevs));
+          const cleaned = dedupeNames(settingsDevs);
+          setDeveloperState(cleaned);
+          if (cleaned.length !== settingsDevs.length) {
+            db().from("settings").upsert({ key: "developers", value: cleaned }).catch(() => {});
+          }
         }
         if (settingsQas.length) {
-          setQaState(dedupeNames(settingsQas));
+          const cleaned = dedupeNames(settingsQas);
+          setQaState(cleaned);
+          if (cleaned.length !== settingsQas.length) {
+            db().from("settings").upsert({ key: "qa_users", value: cleaned }).catch(() => {});
+          }
         }
       } catch (e) {
         console.warn("Failed to load from Supabase, using defaults", e);
