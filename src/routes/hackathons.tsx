@@ -743,27 +743,7 @@ function HackathonsPage() {
                       )}
                     </div>
 
-                    {(() => {
-                      const uid = user?.id ?? "";
-                      const items = getDeliverables(uid, hack.id);
-                      const state = getDeliverableState(uid, hack.id);
-                      const done = items.filter((d) => state[d]).length;
-                      const pct = items.length > 0 ? Math.round((done / items.length) * 100) : 0;
-                      return (
-                        <div className="mt-2">
-                          <div className="flex items-center justify-between text-[9px] font-mono text-muted-foreground mb-1">
-                            <span>Deliverables</span>
-                            <span>{done}/{items.length}</span>
-                          </div>
-                          <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-success transition-all"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })()}
+                    <DeliverablesProgress userId={user?.id ?? ""} eventId={hack.id} version={deliverableVersion} />
 
                     <div
                       className={[
@@ -786,18 +766,7 @@ function HackathonsPage() {
                     <div className="border-t border-border px-4 py-3">
                       {/* Deliverables */}
                       <div className="mb-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="text-[10px] font-mono uppercase text-muted-foreground">Deliverables</h4>
-                          <span className="text-[10px] font-mono text-muted-foreground">
-                            {(() => {
-                              const uid = user?.id ?? "";
-                              const items = getDeliverables(uid, hack.id);
-                              const state = getDeliverableState(uid, hack.id);
-                              const done = items.filter((d) => state[d]).length;
-                              return `${done}/${items.length}`;
-                            })()}
-                          </span>
-                        </div>
+                        <DeliverablesHeader userId={user?.id ?? ""} eventId={hack.id} version={deliverableVersion} />
                         <DeliverableList
                           eventId={hack.id}
                           userId={user?.id ?? ""}
@@ -824,6 +793,7 @@ function HackathonsPage() {
                       </div>
 
                       {/* Projects */}
+                      {hack.projects.length > 0 ? (
                         <div className="space-y-2">
                           {hack.projects.map((proj) => (
                             <div
@@ -1033,6 +1003,39 @@ function LinkProjectModal({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function DeliverablesProgress({ userId, eventId, version }: { userId: string; eventId: string; version: number }) {
+  const items = getDeliverables(userId, eventId);
+  const state = getDeliverableState(userId, eventId);
+  const done = items.filter((d) => state[d]).length;
+  const pct = items.length > 0 ? Math.round((done / items.length) * 100) : 0;
+  return (
+    <div className="mt-2">
+      <div className="flex items-center justify-between text-[9px] font-mono text-muted-foreground mb-1">
+        <span>Deliverables</span>
+        <span>{`${done}/${items.length}`}</span>
+      </div>
+      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full bg-success transition-all"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function DeliverablesHeader({ userId, eventId, version }: { userId: string; eventId: string; version: number }) {
+  const items = getDeliverables(userId, eventId);
+  const state = getDeliverableState(userId, eventId);
+  const done = items.filter((d) => state[d]).length;
+  return (
+    <div className="flex items-center justify-between mb-2">
+      <h4 className="text-[10px] font-mono uppercase text-muted-foreground">Deliverables</h4>
+      <span className="text-[10px] font-mono text-muted-foreground">{`${done}/${items.length}`}</span>
     </div>
   );
 }
