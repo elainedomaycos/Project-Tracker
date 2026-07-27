@@ -94,17 +94,22 @@ const DEFAULT_PROJECTS: Project[] = [
 
 const DEFAULT_DEVELOPERS = ["Rachel", "Mcdoel", "Alvin", "John", "Elaine", "Carl"];
 
-function dedupeNames(list: string[]): string[] {
-  const map = new Map<string, string>();
-  for (const n of list) {
-    const key = n.trim().toLowerCase();
+function normalizeDevList(list: string[], profileMap: Map<string, string>): string[] {
+  const replaced = list.map((n) => {
+    const clean = n.trim();
+    const profileName = profileMap.get(clean.toLowerCase());
+    return profileName || clean;
+  });
+  const seen = new Map<string, string>();
+  for (const n of replaced) {
+    const key = n.toLowerCase();
     if (!key) continue;
-    const existing = map.get(key);
-    if (!existing || n.trim().length < existing.length) {
-      map.set(key, n.trim());
+    const existing = seen.get(key);
+    if (!existing || n.length < existing.length) {
+      seen.set(key, n);
     }
   }
-  return [...map.values()];
+  return [...seen.values()];
 }
 
 const PIN_MAP: Record<string, string> = {
@@ -208,27 +213,36 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
       try {
-        const [projRes, taskRes, devRes, qaRes] = await Promise.all([
+        const [projRes, taskRes, devRes, qaRes, profilesRes] = await Promise.all([
           db().from("projects").select("*"),
           db().from("tasks").select("*"),
           db().from("settings").select("value").eq("key", "developers").single(),
           db().from("settings").select("value").eq("key", "qa_users").single(),
+          db().from("profiles").select("display_name, email"),
         ]);
         if (projRes.data?.length) setProjects(projRes.data.map(fromDbProject));
         if (taskRes.data) setTasks(taskRes.data.map(fromDbTask));
+
+        const profileMap = new Map<string, string>();
+        for (const p of profilesRes.data ?? []) {
+          if (p.display_name && p.email) {
+            profileMap.set(p.email.split("@")[0].toLowerCase(), p.display_name);
+          }
+        }
+
         const settingsDevs: string[] = devRes.data?.value ?? [];
         const settingsQas: string[] = qaRes.data?.value ?? [];
         if (settingsDevs.length) {
-          const cleaned = dedupeNames(settingsDevs);
+          const cleaned = normalizeDevList(settingsDevs, profileMap);
           setDeveloperState(cleaned);
-          if (cleaned.length !== settingsDevs.length) {
+          if (JSON.stringify(cleaned) !== JSON.stringify(settingsDevs)) {
             db().from("settings").upsert({ key: "developers", value: cleaned }).catch(() => {});
           }
         }
         if (settingsQas.length) {
-          const cleaned = dedupeNames(settingsQas);
+          const cleaned = normalizeDevList(settingsQas, profileMap);
           setQaState(cleaned);
-          if (cleaned.length !== settingsQas.length) {
+          if (JSON.stringify(cleaned) !== JSON.stringify(settingsQas)) {
             db().from("settings").upsert({ key: "qa_users", value: cleaned }).catch(() => {});
           }
         }
