@@ -30,6 +30,7 @@ function AdminPage() {
 
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [nameVersions, setNameVersions] = useState<Record<string, number>>({});
 
   useEffect(() => {
     loadUsers();
@@ -53,6 +54,12 @@ function AdminPage() {
     const oldName = user.display_name || user.name;
     const trimmed = newName.trim();
     if (!trimmed || trimmed === oldName) return;
+
+    const duplicate = users.some((u) => u.id !== userId && u.display_name?.toLowerCase() === trimmed.toLowerCase());
+    if (duplicate) {
+      setNameVersions((prev) => ({ ...prev, [userId]: (prev[userId] ?? 0) + 1 }));
+      return;
+    }
 
     const { error } = await supabase
       .from("profiles")
@@ -181,6 +188,7 @@ function AdminPage() {
                         <tr key={u.id} className="border-b border-border last:border-0">
                           <td className="px-4 py-2">
                             <input
+                              key={`${u.id}-name-${nameVersions[u.id] ?? 0}`}
                               defaultValue={u.display_name || u.name || ""}
                               onBlur={(e) => updateName(u.id, e.target.value)}
                               onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
