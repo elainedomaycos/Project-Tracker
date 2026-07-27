@@ -47,6 +47,38 @@ function AdminPage() {
     setLoading(false);
   }
 
+  async function updateName(userId: string, newName: string) {
+    const user = users.find((u) => u.id === userId);
+    if (!user) return;
+    const oldName = user.display_name || user.name;
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) return;
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ display_name: trimmed })
+      .eq("id", userId);
+
+    if (!error) {
+      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, display_name: trimmed } : u)));
+
+      const { data: devSetting } = await supabase.from("settings").select("value").eq("key", "developers").maybeSingle();
+      const { data: qaSetting } = await supabase.from("settings").select("value").eq("key", "qa_users").maybeSingle();
+      const devList: string[] = devSetting?.value ?? [];
+      const qaList: string[] = qaSetting?.value ?? [];
+
+      const replaceInList = (list: string[]) =>
+        list.map((n) => n.toLowerCase() === oldName.toLowerCase() ? trimmed : n);
+
+      if (devList.some((n) => n.toLowerCase() === oldName.toLowerCase())) {
+        await supabase.from("settings").upsert({ key: "developers", value: replaceInList(devList) });
+      }
+      if (qaList.some((n) => n.toLowerCase() === oldName.toLowerCase())) {
+        await supabase.from("settings").upsert({ key: "qa_users", value: replaceInList(qaList) });
+      }
+    }
+  }
+
   async function updateRole(userId: string, newRole: UserRole) {
     const user = users.find((u) => u.id === userId);
     if (!user) return;
@@ -147,7 +179,14 @@ function AdminPage() {
                       const effectiveRole: UserRole = (u.role as UserRole) || "developer";
                       return (
                         <tr key={u.id} className="border-b border-border last:border-0">
-                          <td className="px-4 py-2 font-medium">{u.display_name || u.name || "—"}</td>
+                          <td className="px-4 py-2">
+                            <input
+                              defaultValue={u.display_name || u.name || ""}
+                              onBlur={(e) => updateName(u.id, e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                              className="w-full px-2 py-1 bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-surface-2 rounded text-sm font-medium focus:outline-none"
+                            />
+                          </td>
                           <td className="px-4 py-2 text-muted-foreground">{u.email}</td>
                           <td className="px-4 py-2">
                             <select
