@@ -130,6 +130,38 @@ const EMPTY_FORM: HackathonForm = {
   announcement_url: "",
 };
 
+const DEFAULT_DELIVERABLES = ["Register for event", "Prepare team/project", "Submit project"];
+
+function getDeliverables(userId: string, eventId: string): string[] {
+  try {
+    const raw = localStorage.getItem(`deliverables:${userId}:${eventId}`);
+    return raw ? JSON.parse(raw) : DEFAULT_DELIVERABLES;
+  } catch {
+    return DEFAULT_DELIVERABLES;
+  }
+}
+
+function getDeliverableState(userId: string, eventId: string): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(`deliverable-state:${userId}:${eventId}`);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function addDeliverable(userId: string, eventId: string, text: string) {
+  const items = getDeliverables(userId, eventId);
+  items.push(text);
+  localStorage.setItem(`deliverables:${userId}:${eventId}`, JSON.stringify(items));
+}
+
+function removeDeliverable(userId: string, eventId: string, index: number) {
+  const items = getDeliverables(userId, eventId);
+  items.splice(index, 1);
+  localStorage.setItem(`deliverables:${userId}:${eventId}`, JSON.stringify(items));
+}
+
 function HackathonsPage() {
   const { user, isSuperAdmin } = useAuth();
   const queryClient = useQueryClient();
@@ -141,6 +173,7 @@ function HackathonsPage() {
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [editingEvent, setEditingEvent] = useState<string | null>(null);
+  const [deliverableVersion, setDeliverableVersion] = useState(0);
 
   const form = useForm<HackathonForm>({
     resolver: zodResolver(hackathonSchema),
@@ -629,7 +662,7 @@ function HackathonsPage() {
               return (
                 <div key={hack.id} className={`bg-card border rounded-lg flex flex-col ${expanded ? "border-primary ring-1 ring-primary/20" : "border-border"}`}>
                   <div
-                    className="p-4 cursor-pointer hover:bg-surface-2/50 transition-colors flex flex-col h-[320px] overflow-hidden"
+                    className="p-4 cursor-pointer hover:bg-surface-2/50 transition-colors flex flex-col h-[390px] overflow-hidden"
                     onClick={() => setExpandedId(expanded ? null : hack.id)}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -710,42 +743,87 @@ function HackathonsPage() {
                       )}
                     </div>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleRegistration.mutate(hack.id);
-                      }}
+                    {(() => {
+                      const uid = user?.id ?? "";
+                      const items = getDeliverables(uid, hack.id);
+                      const state = getDeliverableState(uid, hack.id);
+                      const done = items.filter((d) => state[d]).length;
+                      const pct = items.length > 0 ? Math.round((done / items.length) * 100) : 0;
+                      return (
+                        <div className="mt-2">
+                          <div className="flex items-center justify-between text-[9px] font-mono text-muted-foreground mb-1">
+                            <span>Deliverables</span>
+                            <span>{done}/{items.length}</span>
+                          </div>
+                          <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-success transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <div
                       className={[
-                        "mt-2 w-full flex items-center justify-between px-2.5 py-1.5 text-[10px] font-mono uppercase border rounded transition-colors",
+                        "mt-2 w-full flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-mono uppercase border rounded",
                         myRegistrations?.has(hack.id)
                           ? "bg-success/10 text-success border-success/30"
                           : "bg-surface-2 text-muted-foreground border-border",
                       ].join(" ")}
                     >
+                      {myRegistrations?.has(hack.id) ? (
+                        <CheckCircle2 className="size-3 shrink-0" />
+                      ) : (
+                        <Clock className="size-3 shrink-0" />
+                      )}
                       <span>{myRegistrations?.has(hack.id) ? "Registered" : "Not Registered"}</span>
-                      <span
-                        className={[
-                          "relative inline-flex h-4 w-7 shrink-0 rounded-full border transition-colors",
-                          myRegistrations?.has(hack.id)
-                            ? "bg-success border-success"
-                            : "bg-surface-2 border-border",
-                        ].join(" ")}
-                      >
-                        <span
-                          className={[
-                            "pointer-events-none inline-block size-3 rounded-full bg-white shadow-sm transition-transform mt-px",
-                            myRegistrations?.has(hack.id)
-                              ? "translate-x-3"
-                              : "translate-x-0",
-                          ].join(" ")}
-                        />
-                      </span>
-                    </button>
+                    </div>
                   </div>
 
                   {expanded && (
                     <div className="border-t border-border px-4 py-3">
-                      {hack.projects.length > 0 ? (
+                      {/* Deliverables */}
+                      <div className="mb-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-[10px] font-mono uppercase text-muted-foreground">Deliverables</h4>
+                          <span className="text-[10px] font-mono text-muted-foreground">
+                            {(() => {
+                              const uid = user?.id ?? "";
+                              const items = getDeliverables(uid, hack.id);
+                              const state = getDeliverableState(uid, hack.id);
+                              const done = items.filter((d) => state[d]).length;
+                              return `${done}/${items.length}`;
+                            })()}
+                          </span>
+                        </div>
+                        <DeliverableList
+                          eventId={hack.id}
+                          userId={user?.id ?? ""}
+                          onToggle={() => {
+                            setDeliverableVersion((v) => v + 1);
+                            const uid = user?.id ?? "";
+                            const items = getDeliverables(uid, hack.id);
+                            const state = getDeliverableState(uid, hack.id);
+                            const allDone = items.length > 0 && items.every((d) => state[d]);
+                            if (allDone && !myRegistrations?.has(hack.id)) {
+                              toggleRegistration.mutate(hack.id);
+                            }
+                          }}
+                          onAdd={(text) => {
+                            addDeliverable(user?.id ?? "", hack.id, text);
+                            setDeliverableVersion((v) => v + 1);
+                          }}
+                          onRemove={(index) => {
+                            removeDeliverable(user?.id ?? "", hack.id, index);
+                            setDeliverableVersion((v) => v + 1);
+                          }}
+                          version={deliverableVersion}
+                        />
+                      </div>
+
+                      {/* Projects */}
                         <div className="space-y-2">
                           {hack.projects.map((proj) => (
                             <div
@@ -954,6 +1032,78 @@ function LinkProjectModal({
             })
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function DeliverableList({
+  eventId,
+  userId,
+  onToggle,
+  onAdd,
+  onRemove,
+  version,
+}: {
+  eventId: string;
+  userId: string;
+  onToggle: () => void;
+  onAdd: (text: string) => void;
+  onRemove: (index: number) => void;
+  version: number;
+}) {
+  const [newItem, setNewItem] = useState("");
+  const items = getDeliverables(userId, eventId);
+  const state = getDeliverableState(userId, eventId);
+
+  function toggleItem(text: string) {
+    const next = { ...state, [text]: !state[text] };
+    localStorage.setItem(`deliverable-state:${userId}:${eventId}`, JSON.stringify(next));
+    onToggle();
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {items.map((item, i) => (
+        <label
+          key={`${item}-${i}`}
+          className="flex items-center gap-2 px-2 py-1.5 bg-surface-2 border border-border rounded text-xs cursor-pointer hover:bg-surface-2/80 transition-colors group"
+        >
+          <input
+            type="checkbox"
+            checked={!!state[item]}
+            onChange={() => toggleItem(item)}
+            className="size-3.5 rounded border-border accent-success shrink-0"
+          />
+          <span className={state[item] ? "line-through text-muted-foreground" : ""}>{item}</span>
+          <button
+            onClick={(e) => { e.preventDefault(); onRemove(i); }}
+            className="ml-auto p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-surface text-muted-foreground hover:text-destructive transition-all"
+          >
+            <X className="size-3" />
+          </button>
+        </label>
+      ))}
+      <div className="flex items-center gap-1.5 mt-1">
+        <input
+          value={newItem}
+          onChange={(e) => setNewItem(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && newItem.trim()) {
+              onAdd(newItem.trim());
+              setNewItem("");
+            }
+          }}
+          placeholder="Add deliverable..."
+          className="flex-1 px-2 py-1 bg-transparent border border-border rounded text-xs focus:outline-none focus:border-primary"
+        />
+        <button
+          onClick={() => { if (newItem.trim()) { onAdd(newItem.trim()); setNewItem(""); } }}
+          disabled={!newItem.trim()}
+          className="px-1.5 py-1 text-primary hover:bg-primary/10 rounded transition-colors disabled:opacity-30"
+        >
+          <Plus className="size-3" />
+        </button>
       </div>
     </div>
   );
