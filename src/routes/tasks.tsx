@@ -169,97 +169,101 @@ function TasksPage() {
         crumbs={[{ label: "Task Tracker" }, { label: currentProject?.name ?? "All Projects" }]}
         status={{ label: `${tasks.length} tasks`, tone: "info" }}
         actions={
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative">
-              <Search className="size-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search tasks..."
-                className="w-44 pl-7 pr-3 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
-              />
-            </div>
-            <div className="flex items-center gap-1">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
-              >
-                <option value="id">Sort: ID</option>
-                <option value="priority">Sort: Priority</option>
-                <option value="status">Sort: Status</option>
-                <option value="dueDate">Sort: Due Date</option>
-                <option value="developer">Sort: Developer</option>
-              </select>
-              <button
-                onClick={() => setSortDir((d) => d === "asc" ? "desc" : "asc")}
-                className="px-1.5 py-1.5 rounded-md bg-surface-2 border border-border text-xs hover:bg-surface-2/80 transition-colors"
-                title={sortDir === "asc" ? "Ascending" : "Descending"}
-              >
-                <ArrowUpDown className="size-3" />
-              </button>
-            </div>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as TaskStatus | "all")}
-              className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
+          isSuperAdmin && pid ? (
+            <button
+              onClick={() => setShowNewModal(true)}
+              className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 flex items-center gap-1.5"
             >
-              <option value="all">All Status</option>
-              {STATUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-            {uniqueDevs.length > 0 && (
-              <select
-                value={filterDev}
-                onChange={(e) => setFilterDev(e.target.value)}
-                className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
-              >
-                <option value="all">All Devs</option>
-                {uniqueDevs.map((d) => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
-            )}
-            <select
-              value={filterPriority}
-              onChange={(e) => setFilterPriority(e.target.value)}
-              className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
-            >
-              <option value="all">All Priority</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-            {uniqueFields.length > 0 && (
-              <select
-                value={filterField}
-                onChange={(e) => setFilterField(e.target.value)}
-                className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
-              >
-                <option value="all">All Fields</option>
-                {uniqueFields.map((f) => (
-                  <option key={f} value={f}>{f}</option>
-                ))}
-              </select>
-            )}
-            {isSuperAdmin && pid && (
-              <button
-                onClick={() => setShowNewModal(true)}
-                className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 flex items-center gap-1.5"
-              >
-                <Plus className="size-3.5" />
-                New Task
-              </button>
-            )}
-          </div>
+              <Plus className="size-3.5" />
+              New Task
+            </button>
+          ) : undefined
         }
       />
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-6 space-y-4">
+        {/* Filter Bar */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative">
+            <Search className="size-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search tasks..."
+              className="w-44 pl-7 pr-3 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
+            >
+              <option value="id">Sort: ID</option>
+              <option value="priority">Sort: Priority</option>
+              <option value="status">Sort: Status</option>
+              <option value="dueDate">Sort: Due Date</option>
+              <option value="developer">Sort: Developer</option>
+            </select>
+            <button
+              onClick={() => setSortDir((d) => d === "asc" ? "desc" : "asc")}
+              className="px-1.5 py-1.5 rounded-md bg-surface-2 border border-border text-xs hover:bg-surface-2/80 transition-colors"
+              title={sortDir === "asc" ? "Ascending" : "Descending"}
+            >
+              <ArrowUpDown className="size-3" />
+            </button>
+          </div>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as TaskStatus | "all")}
+            className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
+          >
+            <option value="all">All Status</option>
+            {STATUS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          {uniqueDevs.length > 0 && (
+            <select
+              value={filterDev}
+              onChange={(e) => setFilterDev(e.target.value)}
+              className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
+            >
+              <option value="all">All Devs</option>
+              {uniqueDevs.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          )}
+          <select
+            value={filterPriority}
+            onChange={(e) => setFilterPriority(e.target.value)}
+            className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
+          >
+            <option value="all">All Priority</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          {uniqueFields.length > 0 && (
+            <select
+              value={filterField}
+              onChange={(e) => setFilterField(e.target.value)}
+              className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
+            >
+              <option value="all">All Fields</option>
+              {uniqueFields.map((f) => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+          )}
+          <span className="ml-auto text-[10px] font-mono text-muted-foreground">
+            {filtered.length} of {tasks.length} tasks
+          </span>
+        </div>
         {/* Analytics Bar */}
-        <div className="grid grid-cols-5 gap-3 mb-5">
+        <div className="grid grid-cols-5 gap-3">
           <div className="p-3 bg-card border border-border rounded-md text-center">
             <div className="text-lg font-bold">{analytics.total}</div>
             <div className="text-[9px] font-mono text-muted-foreground uppercase">Total</div>
@@ -283,7 +287,7 @@ function TasksPage() {
         </div>
 
         {/* Progress Bar */}
-        <div className="mb-5">
+        <div>
           <div className="flex items-center justify-between text-xs mb-1.5">
             <span className="text-muted-foreground font-mono text-[10px] uppercase">Overall Progress</span>
             <span className="font-bold font-mono">{analytics.overallProgress}%</span>
