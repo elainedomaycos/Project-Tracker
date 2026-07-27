@@ -68,25 +68,25 @@ function AdminPage() {
       const qaList: string[] = qaSetting?.value ?? [];
 
       if (newRole === "developer") {
-        if (!devList.includes(userName)) {
+        if (!devList.some((n) => n.toLowerCase() === userName.toLowerCase())) {
           await supabase.from("settings").upsert({ key: "developers", value: [...devList, userName] });
         }
-        if (qaList.includes(userName)) {
-          await supabase.from("settings").upsert({ key: "qa_users", value: qaList.filter((n) => n !== userName) });
+        if (qaList.some((n) => n.toLowerCase() === userName.toLowerCase())) {
+          await supabase.from("settings").upsert({ key: "qa_users", value: qaList.filter((n) => n.toLowerCase() !== userName.toLowerCase()) });
         }
       } else if (newRole === "qa") {
-        if (!qaList.includes(userName)) {
+        if (!qaList.some((n) => n.toLowerCase() === userName.toLowerCase())) {
           await supabase.from("settings").upsert({ key: "qa_users", value: [...qaList, userName] });
         }
-        if (devList.includes(userName)) {
-          await supabase.from("settings").upsert({ key: "developers", value: devList.filter((n) => n !== userName) });
+        if (devList.some((n) => n.toLowerCase() === userName.toLowerCase())) {
+          await supabase.from("settings").upsert({ key: "developers", value: devList.filter((n) => n.toLowerCase() !== userName.toLowerCase()) });
         }
       } else {
-        if (devList.includes(userName)) {
-          await supabase.from("settings").upsert({ key: "developers", value: devList.filter((n) => n !== userName) });
+        if (devList.some((n) => n.toLowerCase() === userName.toLowerCase())) {
+          await supabase.from("settings").upsert({ key: "developers", value: devList.filter((n) => n.toLowerCase() !== userName.toLowerCase()) });
         }
-        if (qaList.includes(userName)) {
-          await supabase.from("settings").upsert({ key: "qa_users", value: qaList.filter((n) => n !== userName) });
+        if (qaList.some((n) => n.toLowerCase() === userName.toLowerCase())) {
+          await supabase.from("settings").upsert({ key: "qa_users", value: qaList.filter((n) => n.toLowerCase() !== userName.toLowerCase()) });
         }
       }
     }

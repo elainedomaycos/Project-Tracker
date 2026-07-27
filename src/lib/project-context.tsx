@@ -94,6 +94,16 @@ const DEFAULT_PROJECTS: Project[] = [
 
 const DEFAULT_DEVELOPERS = ["Rachel", "Mcdoel", "Alvin", "John", "Elaine", "Carl"];
 
+function dedupeNames(list: string[]): string[] {
+  const seen = new Set<string>();
+  return list.filter((n) => {
+    const key = n.trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 const PIN_MAP: Record<string, string> = {
   Rachel: "1111", Mcdoel: "2222", Alvin: "3333",
   John: "4444", Elaine: "5555", Carl: "6666",
@@ -206,10 +216,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         const settingsDevs: string[] = devRes.data?.value ?? [];
         const settingsQas: string[] = qaRes.data?.value ?? [];
         if (settingsDevs.length) {
-          setDeveloperState(settingsDevs);
+          setDeveloperState(dedupeNames(settingsDevs));
         }
         if (settingsQas.length) {
-          setQaState(settingsQas);
+          setQaState(dedupeNames(settingsQas));
         }
       } catch (e) {
         console.warn("Failed to load from Supabase, using defaults", e);
@@ -388,7 +398,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const addDeveloper = useCallback((name: string) => {
     if (!name.trim()) return;
     setDeveloperState((prev) => {
-      if (prev.includes(name.trim())) return prev;
+      const key = name.trim().toLowerCase();
+      if (prev.some((d) => d.toLowerCase() === key)) return prev;
       const next = [...prev, name.trim()];
       db().from("settings").upsert({ key: "developers", value: next }).then(() => {}).catch(() => {});
       return next;
@@ -406,7 +417,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const addQaUser = useCallback((name: string) => {
     if (!name.trim()) return;
     setQaState((prev) => {
-      if (prev.includes(name.trim())) return prev;
+      const key = name.trim().toLowerCase();
+      if (prev.some((q) => q.toLowerCase() === key)) return prev;
       const next = [...prev, name.trim()];
       db().from("settings").upsert({ key: "qa_users", value: next }).then(() => {}).catch(() => {});
       return next;

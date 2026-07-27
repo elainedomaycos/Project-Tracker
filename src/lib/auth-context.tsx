@@ -208,7 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const key = role === "developer" ? "developers" : "qa_users";
             const { data: existing } = await db().from("settings").select("value").eq("key", key).maybeSingle();
             const list: string[] = existing?.value ?? [];
-            if (!list.includes(displayName)) {
+            if (!list.some((n) => n.toLowerCase() === displayName.toLowerCase())) {
               await db().from("settings").upsert({ key, value: [...list, displayName] });
             }
           }
