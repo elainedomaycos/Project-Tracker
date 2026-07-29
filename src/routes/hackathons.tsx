@@ -132,36 +132,6 @@ const EMPTY_FORM: HackathonForm = {
 
 const DEFAULT_DELIVERABLES = ["Register for event", "Prepare team/project", "Submit project"];
 
-function getDeliverables(userId: string, eventId: string): string[] {
-  try {
-    const raw = localStorage.getItem(`deliverables:${userId}:${eventId}`);
-    return raw ? JSON.parse(raw) : [...DEFAULT_DELIVERABLES];
-  } catch {
-    return [...DEFAULT_DELIVERABLES];
-  }
-}
-
-function getDeliverableState(userId: string, eventId: string): Record<string, boolean> {
-  try {
-    const raw = localStorage.getItem(`deliverable-state:${userId}:${eventId}`);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-function addDeliverable(userId: string, eventId: string, text: string) {
-  const items = getDeliverables(userId, eventId);
-  items.push(text);
-  localStorage.setItem(`deliverables:${userId}:${eventId}`, JSON.stringify(items));
-}
-
-function removeDeliverable(userId: string, eventId: string, index: number) {
-  const items = getDeliverables(userId, eventId);
-  items.splice(index, 1);
-  localStorage.setItem(`deliverables:${userId}:${eventId}`, JSON.stringify(items));
-}
-
 function HackathonsPage() {
   const { user, isSuperAdmin } = useAuth();
   const queryClient = useQueryClient();
@@ -173,7 +143,6 @@ function HackathonsPage() {
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [editingEvent, setEditingEvent] = useState<string | null>(null);
-  const [deliverableVersion, setDeliverableVersion] = useState(0);
 
   const form = useForm<HackathonForm>({
     resolver: zodResolver(hackathonSchema),
@@ -285,6 +254,62 @@ function HackathonsPage() {
       queryClient.invalidateQueries({ queryKey: ["event-registrations"] });
     },
     onError: () => toast.error("Could not update registration"),
+  });
+
+  const { data: deliverablesMap } = useQuery({
+    queryKey: ["event-deliverables", user?.id],
+    queryFn: async (): Promise<Record<string, { items: string[]; state: Record<string, boolean> }>> => {
+      if (!user?.id) return {};
+      const { data } = await db()
+        .from("event_deliverables")
+        .select("event_id, items, state")
+        .eq("user_id", user.id);
+      const map: Record<string, { items: string[]; state: Record<string, boolean> }> = {};
+      for (const row of data ?? []) {
+        map[row.event_id] = { items: row.items ?? [], state: row.state ?? {} };
+      }
+      return map;
+    },
+    enabled: !!user?.id,
+    staleTime: 30_000,
+  });
+
+  function getEventDeliverables(eventId: string) {
+    const entry = deliverablesMap?.[eventId];
+    return {
+      items: entry?.items ?? [...DEFAULT_DELIVERABLES],
+      state: entry?.state ?? {},
+    };
+  }
+
+  const deliverableMutation = useMutation({
+    mutationFn: async ({ eventId, items, state }: { eventId: string; items: string[]; state: Record<string, boolean> }) => {
+      if (!user?.id) return;
+      const { error } = await db()
+        .from("event_deliverables")
+        .upsert({
+          event_id: eventId,
+          user_id: user.id,
+          items,
+          state,
+        }, { onConflict: "event_id,user_id" });
+      if (error) throw error;
+    },
+    onMutate: async ({ eventId, items, state }) => {
+      await queryClient.cancelQueries({ queryKey: ["event-deliverables", user?.id] });
+      const previous = queryClient.getQueryData(["event-deliverables", user?.id]);
+      queryClient.setQueryData(["event-deliverables", user?.id], (old: any) => ({
+        ...(old ?? {}),
+        [eventId]: { items, state },
+      }));
+      return { previous };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["event-deliverables", user?.id], context.previous);
+      }
+      toast.error("Failed to save deliverables");
+    },
   });
 
   const createMutation = useMutation({
@@ -658,6 +683,7 @@ function HackathonsPage() {
               const expanded = expandedId === hack.id;
               const startDate = new Date(hack.start_date);
               const endDate = new Date(hack.end_date);
+              const dl = getEventDeliverables(hack.id);
 
               return (
                 <div key={hack.id} className={`bg-card border rounded-lg flex flex-col ${expanded ? "border-primary ring-1 ring-primary/20" : "border-border"}`}>
@@ -743,7 +769,7 @@ function HackathonsPage() {
                       )}
                     </div>
 
-                    <DeliverablesProgress userId={user?.id ?? ""} eventId={hack.id} version={deliverableVersion} />
+                    <DeliverablesProgress items={dl.items} state={dl.state} />
 
                     <div
                       className={[
@@ -766,29 +792,26 @@ function HackathonsPage() {
                     <div className="border-t border-border px-4 py-3">
                       {/* Deliverables */}
                       <div className="mb-3">
-                        <DeliverablesHeader userId={user?.id ?? ""} eventId={hack.id} version={deliverableVersion} />
+                        <DeliverablesHeader items={dl.items} state={dl.state} />
                         <DeliverableList
-                          eventId={hack.id}
-                          userId={user?.id ?? ""}
-                          onToggle={() => {
-                            setDeliverableVersion((v) => v + 1);
-                            const uid = user?.id ?? "";
-                            const items = getDeliverables(uid, hack.id);
-                            const state = getDeliverableState(uid, hack.id);
-                            const allDone = items.length > 0 && items.every((d) => state[d]);
+                          items={dl.items}
+                          state={dl.state}
+                          onToggle={(text) => {
+                            const nextState = { ...dl.state, [text]: !dl.state[text] };
+                            deliverableMutation.mutate({ eventId: hack.id, items: dl.items, state: nextState });
+                            const allDone = dl.items.length > 0 && dl.items.every((d) => nextState[d]);
                             if (allDone && !myRegistrations?.has(hack.id)) {
                               toggleRegistration.mutate(hack.id);
                             }
                           }}
                           onAdd={(text) => {
-                            addDeliverable(user?.id ?? "", hack.id, text);
-                            setDeliverableVersion((v) => v + 1);
+                            deliverableMutation.mutate({ eventId: hack.id, items: [...dl.items, text], state: dl.state });
                           }}
                           onRemove={(index) => {
-                            removeDeliverable(user?.id ?? "", hack.id, index);
-                            setDeliverableVersion((v) => v + 1);
+                            const next = [...dl.items];
+                            next.splice(index, 1);
+                            deliverableMutation.mutate({ eventId: hack.id, items: next, state: dl.state });
                           }}
-                          version={deliverableVersion}
                         />
                       </div>
 
@@ -1007,9 +1030,7 @@ function LinkProjectModal({
   );
 }
 
-function DeliverablesProgress({ userId, eventId, version }: { userId: string; eventId: string; version: number }) {
-  const items = getDeliverables(userId, eventId);
-  const state = getDeliverableState(userId, eventId);
+function DeliverablesProgress({ items, state }: { items: string[]; state: Record<string, boolean> }) {
   const done = items.filter((d) => state[d]).length;
   const pct = items.length > 0 ? Math.round((done / items.length) * 100) : 0;
   return (
@@ -1028,9 +1049,7 @@ function DeliverablesProgress({ userId, eventId, version }: { userId: string; ev
   );
 }
 
-function DeliverablesHeader({ userId, eventId, version }: { userId: string; eventId: string; version: number }) {
-  const items = getDeliverables(userId, eventId);
-  const state = getDeliverableState(userId, eventId);
+function DeliverablesHeader({ items, state }: { items: string[]; state: Record<string, boolean> }) {
   const done = items.filter((d) => state[d]).length;
   return (
     <div className="flex items-center justify-between mb-2">
@@ -1041,29 +1060,19 @@ function DeliverablesHeader({ userId, eventId, version }: { userId: string; even
 }
 
 function DeliverableList({
-  eventId,
-  userId,
+  items,
+  state,
   onToggle,
   onAdd,
   onRemove,
-  version,
 }: {
-  eventId: string;
-  userId: string;
-  onToggle: () => void;
+  items: string[];
+  state: Record<string, boolean>;
+  onToggle: (text: string) => void;
   onAdd: (text: string) => void;
   onRemove: (index: number) => void;
-  version: number;
 }) {
   const [newItem, setNewItem] = useState("");
-  const items = getDeliverables(userId, eventId);
-  const state = getDeliverableState(userId, eventId);
-
-  function toggleItem(text: string) {
-    const next = { ...state, [text]: !state[text] };
-    localStorage.setItem(`deliverable-state:${userId}:${eventId}`, JSON.stringify(next));
-    onToggle();
-  }
 
   return (
     <div className="space-y-1.5">
@@ -1075,7 +1084,7 @@ function DeliverableList({
           <input
             type="checkbox"
             checked={!!state[item]}
-            onChange={() => toggleItem(item)}
+            onChange={() => onToggle(item)}
             className="size-3.5 rounded border-border accent-success shrink-0"
           />
           <span className={state[item] ? "line-through text-muted-foreground" : ""}>{item}</span>
