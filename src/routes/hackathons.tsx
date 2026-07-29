@@ -135,9 +135,9 @@ const DEFAULT_DELIVERABLES = ["Register for event", "Prepare team/project", "Sub
 function getDeliverables(userId: string, eventId: string): string[] {
   try {
     const raw = localStorage.getItem(`deliverables:${userId}:${eventId}`);
-    return raw ? JSON.parse(raw) : DEFAULT_DELIVERABLES;
+    return raw ? JSON.parse(raw) : [...DEFAULT_DELIVERABLES];
   } catch {
-    return DEFAULT_DELIVERABLES;
+    return [...DEFAULT_DELIVERABLES];
   }
 }
 
