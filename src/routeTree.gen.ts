@@ -17,6 +17,7 @@ import { Route as DeveloperRouteImport } from './routes/developer'
 import { Route as CredentialsRouteImport } from './routes/credentials'
 import { Route as ClientRouteImport } from './routes/client'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ArchiveRouteImport } from './routes/archive'
 import { Route as AiRouteImport } from './routes/ai'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -61,6 +62,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ArchiveRoute = ArchiveRouteImport.update({
+  id: '/archive',
+  path: '/archive',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AiRoute = AiRouteImport.update({
   id: '/ai',
   path: '/ai',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/ai': typeof AiRoute
+  '/archive': typeof ArchiveRoute
   '/auth': typeof AuthRoute
   '/client': typeof ClientRoute
   '/credentials': typeof CredentialsRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/ai': typeof AiRoute
+  '/archive': typeof ArchiveRoute
   '/auth': typeof AuthRoute
   '/client': typeof ClientRoute
   '/credentials': typeof CredentialsRoute
@@ -108,6 +116,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/ai': typeof AiRoute
+  '/archive': typeof ArchiveRoute
   '/auth': typeof AuthRoute
   '/client': typeof ClientRoute
   '/credentials': typeof CredentialsRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/ai'
+    | '/archive'
     | '/auth'
     | '/client'
     | '/credentials'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/ai'
+    | '/archive'
     | '/auth'
     | '/client'
     | '/credentials'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/ai'
+    | '/archive'
     | '/auth'
     | '/client'
     | '/credentials'
@@ -163,6 +175,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   AiRoute: typeof AiRoute
+  ArchiveRoute: typeof ArchiveRoute
   AuthRoute: typeof AuthRoute
   ClientRoute: typeof ClientRoute
   CredentialsRoute: typeof CredentialsRoute
@@ -231,6 +244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/archive': {
+      id: '/archive'
+      path: '/archive'
+      fullPath: '/archive'
+      preLoaderRoute: typeof ArchiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/ai': {
       id: '/ai'
       path: '/ai'
@@ -259,6 +279,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AiRoute: AiRoute,
+  ArchiveRoute: ArchiveRoute,
   AuthRoute: AuthRoute,
   ClientRoute: ClientRoute,
   CredentialsRoute: CredentialsRoute,

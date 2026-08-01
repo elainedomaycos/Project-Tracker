@@ -19,7 +19,6 @@ import {
   Key,
   BarChart3,
   ChevronDown,
-  ChevronUp,
   X,
   Shield,
   LogOut,
@@ -27,8 +26,6 @@ import {
   UserCircle,
   Trophy,
   Archive,
-  RotateCcw,
-  Trash2,
 } from "lucide-react";
 
 import appCss from "../styles.css?url";
@@ -150,6 +147,7 @@ const HACKATHON_NAV: readonly NavItem[] = [
 const EXTRA_NAV: readonly NavItem[] = [
   { to: "/ai", label: "AI Tools", icon: Sparkles, roles: ["super_admin", "developer", "qa"] },
   { to: "/credentials", label: "Credentials", icon: Key, roles: ["super_admin", "developer", "qa"] },
+  { to: "/archive", label: "Archive", icon: Archive, roles: ["super_admin"] },
   { to: "/admin", label: "Admin", icon: Shield, roles: ["super_admin", "developer", "qa"] },
 ];
 
@@ -334,10 +332,9 @@ function AppShell({ pathname, queryClient }: { pathname: string; queryClient: Qu
 }
 
 function ProjectSelector() {
-  const { projects, archivedProjects, currentProject, setCurrentProject, addProject, archiveProject, restoreProject, removeProject } = useProject();
+  const { projects, currentProject, setCurrentProject, addProject, archiveProject } = useProject();
   const { isSuperAdmin } = useAuth();
   const [showModal, setShowModal] = useState(false);
-  const [showArchive, setShowArchive] = useState(false);
   const [form, setForm] = useState({ name: "", clientName: "", endUsers: "", modules: "" });
 
   function handleCreate() {
@@ -385,55 +382,6 @@ function ProjectSelector() {
               <Archive className="size-3" />
               Archive
             </button>
-          )}
-        </div>
-      )}
-
-      {archivedProjects.length > 0 && (
-        <div className="pt-1.5 mt-1 border-t border-border">
-          <button
-            onClick={() => setShowArchive((v) => !v)}
-            className="w-full flex items-center justify-between px-2 py-1 rounded text-[10px] font-mono uppercase text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
-          >
-            <span className="flex items-center gap-1">
-              <Archive className="size-3" />
-              Archived ({archivedProjects.length})
-            </span>
-            {showArchive ? (
-              <ChevronUp className="size-3" />
-            ) : (
-              <ChevronDown className="size-3" />
-            )}
-          </button>
-          {showArchive && (
-            <div className="mt-1 space-y-1">
-              {archivedProjects.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center gap-1 px-2 py-1 rounded bg-surface-2/50 border border-border"
-                >
-                  <span className="text-[10px] text-muted-foreground truncate flex-1">{p.name}</span>
-                  <button
-                    onClick={() => restoreProject(p.id)}
-                    title="Restore project"
-                    className="p-0.5 text-muted-foreground hover:text-success rounded hover:bg-background transition-colors"
-                  >
-                    <RotateCcw className="size-3" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm(`Permanently delete "${p.name}" and all its tasks? This cannot be undone.`)) {
-                        removeProject(p.id);
-                      }
-                    }}
-                    title="Permanently delete"
-                    className="p-0.5 text-muted-foreground hover:text-destructive rounded hover:bg-background transition-colors"
-                  >
-                    <Trash2 className="size-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
           )}
         </div>
       )}
