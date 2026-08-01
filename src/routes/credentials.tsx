@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/console";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, X, Eye, EyeOff, Copy, Key, CheckCircle2, Globe, Database, Lock, Search, ArrowUpDown } from "lucide-react";
+import { Plus, X, Eye, EyeOff, Copy, Key, CheckCircle2, Globe, Database, Lock, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useProject } from "@/lib/project-context";
 
@@ -80,14 +80,19 @@ function Credentials() {
   const [visible, setVisible] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [sortEndUser, setSortEndUser] = useState("");
 
   const pid = currentProject?.id ?? null;
   const visibleCreds = pid ? creds.filter((c) => c.projectId === pid) : creds;
   const allProjects = [...projects, ...archivedProjects];
 
+  const sortUserOptions = pid
+    ? (currentProject?.endUsers ?? [])
+    : [...new Set(visibleCreds.map((c) => c.endUser).filter(Boolean))].sort();
+
   const filteredCreds = visibleCreds
     .filter((c) => {
+      if (sortEndUser && c.endUser !== sortEndUser) return false;
       if (!search.trim()) return true;
       const q = search.toLowerCase();
       const hay = [c.service, c.key, c.username ?? "", c.endUser, c.description, allProjects.find((p) => p.id === c.projectId)?.name ?? ""]
@@ -95,10 +100,7 @@ function Credentials() {
         .toLowerCase();
       return hay.includes(q);
     })
-    .sort((a, b) => {
-      const cmp = (a.endUser || "zzz").localeCompare(b.endUser || "zzz");
-      return sortDir === "asc" ? cmp : -cmp;
-    });
+    .sort((a, b) => (a.endUser || "zzz").localeCompare(b.endUser || "zzz"));
 
   const [form, setForm] = useState({
     projectId: pid ?? "",
@@ -268,24 +270,24 @@ function Credentials() {
                 />
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-[10px] font-mono uppercase text-muted-foreground px-2">Sort</span>
-                <select value="endUser" className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary">
-                  <option value="endUser">End User</option>
-                </select>
-                <button
-                  onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
-                  className="px-1.5 py-1.5 rounded-md bg-surface-2 border border-border text-xs hover:bg-surface-2/80 transition-colors"
-                  title={sortDir === "asc" ? "Ascending" : "Descending"}
+                <span className="text-[10px] font-mono uppercase text-muted-foreground px-2">End User</span>
+                <select
+                  value={sortEndUser}
+                  onChange={(e) => setSortEndUser(e.target.value)}
+                  className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
                 >
-                  <ArrowUpDown className="size-3" />
-                </button>
+                  <option value="">All End Users</option>
+                  {sortUserOptions.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
             {filteredCreds.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-20">
                 <Search className="size-12 text-muted-foreground mb-4" />
-                <p className="text-sm font-medium text-muted-foreground">No credentials match your search</p>
+                <p className="text-sm font-medium text-muted-foreground">No credentials match</p>
               </div>
             ) : (
             <div className="overflow-x-auto border border-border rounded-lg">
