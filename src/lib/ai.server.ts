@@ -32,7 +32,7 @@ export type RequirementAnalysis = {
 export const analyzeRequirement = createServerFn({ method: "POST" })
 
   .handler(async ({ data }): Promise<RequirementAnalysis> => {
-    const { requirement } = data as { requirement: string };
+    const { requirement } = data as unknown as { requirement: string };
     try {
       const prompt = `Analyze this client requirement and generate a structured Scrum breakdown. Each task description must be detailed enough for a developer to start implementing immediately — include specific components, logic, interactions, or data flow.
 
@@ -82,7 +82,7 @@ export type CommitMessageResult = {
 export const generateCommitMessage = createServerFn({ method: "POST" })
 
   .handler(async ({ data }): Promise<CommitMessageResult> => {
-    const { changes } = data as { changes: string };
+    const { changes } = data as unknown as { changes: string };
     try {
       const prompt = `Generate a conventional commit message for these changes.
 Changes: "${changes}"
@@ -109,7 +109,7 @@ export type BranchNameResult = {
 export const generateBranchName = createServerFn({ method: "POST" })
 
   .handler(async ({ data }): Promise<BranchNameResult> => {
-    const { description } = data as { description: string };
+    const { description } = data as unknown as { description: string };
     try {
       const prompt = `Generate a git branch name for this description.
 Description: "${description}"
@@ -143,7 +143,7 @@ export type TaskBreakdown = {
 export const generateTaskBreakdown = createServerFn({ method: "POST" })
 
   .handler(async ({ data }): Promise<TaskBreakdown> => {
-    const { task } = data as { task: string };
+    const { task } = data as unknown as { task: string };
     try {
       const prompt = `Break this task into subtasks with estimates.
 Task: "${task}"
@@ -296,7 +296,7 @@ export type QACheckResult = {
 export const qaCheckTask = createServerFn({ method: "POST" })
 
   .handler(async ({ data }): Promise<QACheckResult> => {
-    const { taskDescription } = data as { taskDescription: string };
+    const { taskDescription } = data as unknown as { taskDescription: string };
     try {
       const prompt = `QA check this implementation description for quality issues.
 

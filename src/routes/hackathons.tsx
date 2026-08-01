@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { parseEventFromText, type ParsedEvent } from "@/lib/groq";
 import {
   Calendar,
@@ -257,20 +257,17 @@ function HackathonsPage() {
   });
 
   const { data: deliverablesMap } = useQuery({
-    queryKey: ["event-deliverables", user?.id],
+    queryKey: ["event-deliverables"],
     queryFn: async (): Promise<Record<string, { items: string[]; state: Record<string, boolean> }>> => {
-      if (!user?.id) return {};
       const { data } = await db()
         .from("event_deliverables")
-        .select("event_id, items, state")
-        .eq("user_id", user.id);
+        .select("event_id, items, state");
       const map: Record<string, { items: string[]; state: Record<string, boolean> }> = {};
       for (const row of data ?? []) {
         map[row.event_id] = { items: row.items ?? [], state: row.state ?? {} };
       }
       return map;
     },
-    enabled: !!user?.id,
     staleTime: 30_000,
   });
 
@@ -284,21 +281,19 @@ function HackathonsPage() {
 
   const deliverableMutation = useMutation({
     mutationFn: async ({ eventId, items, state }: { eventId: string; items: string[]; state: Record<string, boolean> }) => {
-      if (!user?.id) return;
       const { error } = await db()
         .from("event_deliverables")
         .upsert({
           event_id: eventId,
-          user_id: user.id,
           items,
           state,
-        }, { onConflict: "event_id,user_id" });
+        }, { onConflict: "event_id" });
       if (error) throw error;
     },
     onMutate: async ({ eventId, items, state }) => {
-      await queryClient.cancelQueries({ queryKey: ["event-deliverables", user?.id] });
-      const previous = queryClient.getQueryData(["event-deliverables", user?.id]);
-      queryClient.setQueryData(["event-deliverables", user?.id], (old: any) => ({
+      await queryClient.cancelQueries({ queryKey: ["event-deliverables"] });
+      const previous = queryClient.getQueryData(["event-deliverables"]);
+      queryClient.setQueryData(["event-deliverables"], (old: any) => ({
         ...(old ?? {}),
         [eventId]: { items, state },
       }));
@@ -306,11 +301,27 @@ function HackathonsPage() {
     },
     onError: (err, variables, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(["event-deliverables", user?.id], context.previous);
+        queryClient.setQueryData(["event-deliverables"], context.previous);
       }
       toast.error("Failed to save deliverables");
     },
   });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("event-deliverables-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "event_deliverables" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["event-deliverables"] });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const createMutation = useMutation({
     mutationFn: async (data: HackathonForm) => {

@@ -74,8 +74,8 @@ function AdminPage() {
 
       const { data: devSetting } = await supabase.from("settings").select("value").eq("key", "developers").maybeSingle();
       const { data: qaSetting } = await supabase.from("settings").select("value").eq("key", "qa_users").maybeSingle();
-      const devList: string[] = devSetting?.value ?? [];
-      const qaList: string[] = qaSetting?.value ?? [];
+      const devList: string[] = (devSetting?.value ?? []) as string[];
+      const qaList: string[] = (qaSetting?.value ?? []) as string[];
 
       const replaceInList = (list: string[]) =>
         list.map((n) => n.toLowerCase() === oldName.toLowerCase() ? trimmed : n);
@@ -106,8 +106,8 @@ function AdminPage() {
 
       const { data: devSetting } = await supabase.from("settings").select("value").eq("key", "developers").maybeSingle();
       const { data: qaSetting } = await supabase.from("settings").select("value").eq("key", "qa_users").maybeSingle();
-      const devList: string[] = devSetting?.value ?? [];
-      const qaList: string[] = qaSetting?.value ?? [];
+      const devList: string[] = (devSetting?.value ?? []) as string[];
+      const qaList: string[] = (qaSetting?.value ?? []) as string[];
 
       if (newRole === "developer") {
         if (!devList.some((n) => n.toLowerCase() === userName.toLowerCase())) {

@@ -28,6 +28,9 @@ export type Task = {
   createdBy: string;
 };
 
+export type NewTaskInput = Omit<Task, "id" | "taskId" | "createdBy" | "branch" | "endUser" | "module"> &
+  Partial<Pick<Task, "branch" | "endUser" | "module">>;
+
 export type Project = {
   id: string;
   name: string;
@@ -65,7 +68,7 @@ type ProjectContextType = {
   archiveProject: (id: string) => void;
   restoreProject: (id: string) => void;
   removeProject: (id: string) => void;
-  addTask: (t: Omit<Task, "id" | "taskId" | "createdBy">) => void;
+  addTask: (t: NewTaskInput) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   removeTask: (id: string) => void;
   nextTaskId: (projectId: string) => string;
@@ -355,11 +358,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     db().from("projects").delete().eq("id", id).then(() => {}).catch(() => {});
   }
 
-  function addTask(t: Omit<Task, "id" | "taskId" | "createdBy">) {
+  function addTask(t: NewTaskInput) {
     const tid = nextTaskId(t.projectId);
     const slug = t.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30);
     const branch = `feature/${tid.toLowerCase()}-${slug}`;
-    const task: Task = { id: generateId(), taskId: tid, branch, endUser: "", module: "", createdBy: profile?.name || "", ...t };
+    const task: Task = { id: generateId(), taskId: tid, createdBy: profile?.name || "", ...t, branch: t.branch || branch, endUser: t.endUser || "", module: t.module || "" };
     setAllTasks((prev) => [...prev, task]);
     db().from("tasks").insert(toDbTask(task)).then(() => {}).catch(() => {});
   }
