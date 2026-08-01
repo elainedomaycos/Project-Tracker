@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/console";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, X, Eye, EyeOff, Copy, Key, CheckCircle2, Globe, Database, Lock } from "lucide-react";
+import { Plus, X, Eye, EyeOff, Copy, Key, CheckCircle2, Globe, Database, Lock, Search, ArrowUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useProject } from "@/lib/project-context";
 
@@ -79,10 +79,26 @@ function Credentials() {
   const [showModal, setShowModal] = useState(false);
   const [visible, setVisible] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const pid = currentProject?.id ?? null;
   const visibleCreds = pid ? creds.filter((c) => c.projectId === pid) : creds;
   const allProjects = [...projects, ...archivedProjects];
+
+  const filteredCreds = visibleCreds
+    .filter((c) => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      const hay = [c.service, c.key, c.username ?? "", c.endUser, c.description, allProjects.find((p) => p.id === c.projectId)?.name ?? ""]
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    })
+    .sort((a, b) => {
+      const cmp = (a.endUser || "zzz").localeCompare(b.endUser || "zzz");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
 
   const [form, setForm] = useState({
     projectId: pid ?? "",
@@ -223,7 +239,7 @@ function Credentials() {
         }
       />
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {loading ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-20">
             <Key className="size-12 text-muted-foreground mb-4" />
@@ -240,7 +256,39 @@ function Credentials() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto border border-border rounded-lg">
+          <>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative">
+                <Search className="size-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search credentials..."
+                  className="w-48 pl-7 pr-3 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
+                />
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] font-mono uppercase text-muted-foreground px-2">Sort</span>
+                <select value="endUser" className="px-2 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary">
+                  <option value="endUser">End User</option>
+                </select>
+                <button
+                  onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                  className="px-1.5 py-1.5 rounded-md bg-surface-2 border border-border text-xs hover:bg-surface-2/80 transition-colors"
+                  title={sortDir === "asc" ? "Ascending" : "Descending"}
+                >
+                  <ArrowUpDown className="size-3" />
+                </button>
+              </div>
+            </div>
+
+            {filteredCreds.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center py-20">
+                <Search className="size-12 text-muted-foreground mb-4" />
+                <p className="text-sm font-medium text-muted-foreground">No credentials match your search</p>
+              </div>
+            ) : (
+            <div className="overflow-x-auto border border-border rounded-lg">
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="bg-surface-2 border-b border-border">
@@ -256,7 +304,7 @@ function Credentials() {
                 </tr>
               </thead>
               <tbody>
-                {visibleCreds.map((c) => {
+                {filteredCreds.map((c) => {
                   const isVisible = visible[c.id];
                   const TypeIcon = TYPE_META[c.type].icon;
                   const project = allProjects.find((p) => p.id === c.projectId);
@@ -332,6 +380,8 @@ function Credentials() {
               </tbody>
             </table>
           </div>
+            )}
+          </>
         )}
       </div>
 
