@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, ty
 import { supabase } from "@/integrations/supabase/client";
 import { readCache, writeCache } from "@/lib/local-cache";
 import { useAuth } from "@/lib/auth-context";
+import { toast } from "sonner";
 
 export type TaskStatus = "pending" | "doing" | "qa" | "done";
 export type QaStatus = "waiting" | "passed" | "failed";
@@ -214,6 +215,13 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [qaUsers, setQaState] = useState<string[]>(["Sara", "Mike"]);
   const [loading, setLoading] = useState(true);
 
+  const lastToast = useRef<string | number | null>(null);
+  const taskEditToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function notify(kind: "success" | "error", message: string) {
+    if (lastToast.current != null) toast.dismiss(lastToast.current);
+    lastToast.current = kind === "success" ? toast.success(message) : toast.error(message);
+  }
+
   const projects = allProjects.filter((p) => !p.archivedAt);
   const archivedProjects = allProjects.filter((p) => !!p.archivedAt);
   const tasks = allTasks.filter((t) => {
@@ -352,7 +360,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     db().from("projects").insert({
       id, name: data.name, prefix, created_at: p.createdAt,
       client_name: data.clientName, end_users: data.endUsers, modules: data.modules,
-    }).then(() => {}).catch(() => {});
+    }).then(() => notify("success", "Project created")).catch(() => notify("error", "Failed to create project"));
   }
 
   function archiveProject(id: string) {
@@ -364,12 +372,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setCurrentProjectState(next);
       localStorage.setItem("selected-project-id", next ? next.id : "__all__");
     }
-    db().from("projects").update({ archived_at: now }).eq("id", id).then(() => {}).catch(() => {});
+    db().from("projects").update({ archived_at: now }).eq("id", id).then(() => notify("success", "Project archived")).catch(() => notify("error", "Failed to archive project"));
   }
 
   function restoreProject(id: string) {
     setAllProjects((prev) => prev.map((p) => (p.id === id ? { ...p, archivedAt: null } : p)));
-    db().from("projects").update({ archived_at: null }).eq("id", id).then(() => {}).catch(() => {});
+    db().from("projects").update({ archived_at: null }).eq("id", id).then(() => notify("success", "Project restored")).catch(() => notify("error", "Failed to restore project"));
   }
 
   function removeProject(id: string) {
@@ -382,7 +390,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("selected-project-id", next ? next.id : "__all__");
     }
     db().from("tasks").delete().eq("project_id", id).then(() => {}).catch(() => {});
-    db().from("projects").delete().eq("id", id).then(() => {}).catch(() => {});
+    db().from("projects").delete().eq("id", id).then(() => notify("success", "Project deleted")).catch(() => notify("error", "Failed to delete project"));
   }
 
   function addTask(t: NewTaskInput) {
@@ -391,7 +399,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     const branch = `feature/${tid.toLowerCase()}-${slug}`;
     const task: Task = { id: generateId(), taskId: tid, createdBy: profile?.name || "", ...t, branch: t.branch || branch, endUser: t.endUser || "", module: t.module || "" };
     setAllTasks((prev) => [...prev, task]);
-    db().from("tasks").insert(toDbTask(task)).then(() => {}).catch(() => {});
+    db().from("tasks").insert(toDbTask(task)).then(() => notify("success", "Task created")).catch(() => notify("error", "Failed to create task"));
   }
 
   function updateTask(id: string, updates: Partial<Task>) {
@@ -417,12 +425,17 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       else if (k === "createdBy") dbUpdates.created_by = v;
       else dbUpdates[k] = v;
     }
-    db().from("tasks").update(dbUpdates).eq("id", id).then(() => {}).catch(() => {});
+    db().from("tasks").update(dbUpdates).eq("id", id)
+      .then(() => {
+        if (taskEditToastTimer.current) clearTimeout(taskEditToastTimer.current);
+        taskEditToastTimer.current = setTimeout(() => notify("success", "Task updated"), 600);
+      })
+      .catch(() => notify("error", "Failed to update task"));
   }
 
   function removeTask(id: string) {
     setAllTasks((prev) => prev.filter((t) => t.id !== id));
-    db().from("tasks").delete().eq("id", id).then(() => {}).catch(() => {});
+    db().from("tasks").delete().eq("id", id).then(() => notify("success", "Task deleted")).catch(() => notify("error", "Failed to delete task"));
   }
 
   function nextTaskId(projectId: string): string {
@@ -492,7 +505,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const key = name.trim().toLowerCase();
       if (prev.some((d) => d.toLowerCase() === key)) return prev;
       const next = [...prev, name.trim()];
-      db().from("settings").upsert({ key: "developers", value: next }).then(() => {}).catch(() => {});
+      db().from("settings").upsert({ key: "developers", value: next }).then(() => notify("success", "Developer added")).catch(() => notify("error", "Failed to add developer"));
       return next;
     });
   }, []);
@@ -500,7 +513,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const removeDeveloper = useCallback((name: string) => {
     setDeveloperState((prev) => {
       const next = prev.filter((d) => d !== name);
-      db().from("settings").upsert({ key: "developers", value: next }).then(() => {}).catch(() => {});
+      db().from("settings").upsert({ key: "developers", value: next }).then(() => notify("success", "Developer removed")).catch(() => notify("error", "Failed to remove developer"));
       return next;
     });
   }, []);
@@ -511,7 +524,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const key = name.trim().toLowerCase();
       if (prev.some((q) => q.toLowerCase() === key)) return prev;
       const next = [...prev, name.trim()];
-      db().from("settings").upsert({ key: "qa_users", value: next }).then(() => {}).catch(() => {});
+      db().from("settings").upsert({ key: "qa_users", value: next }).then(() => notify("success", "QA user added")).catch(() => notify("error", "Failed to add QA user"));
       return next;
     });
   }, []);
@@ -519,7 +532,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const removeQaUser = useCallback((name: string) => {
     setQaState((prev) => {
       const next = prev.filter((d) => d !== name);
-      db().from("settings").upsert({ key: "qa_users", value: next }).then(() => {}).catch(() => {});
+      db().from("settings").upsert({ key: "qa_users", value: next }).then(() => notify("success", "QA user removed")).catch(() => notify("error", "Failed to remove QA user"));
       return next;
     });
   }, []);

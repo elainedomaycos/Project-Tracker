@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/console";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useProject, type Task, type TaskStatus, type QaStatus } from "@/lib/project-context";
 import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/integrations/supabase/client";
 import { Plus, X, Search, GitBranch, Copy, CheckCircle2, Clock, AlertTriangle, FileCheck, Users, Puzzle, ArrowUpDown } from "lucide-react";
 
 export const Route = createFileRoute("/tasks")({
@@ -60,11 +61,31 @@ function TasksPage() {
   const [sortBy, setSortBy] = useState<"id" | "priority" | "status" | "dueDate" | "developer">("id");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [superAdmins, setSuperAdmins] = useState<string[]>([]);
   const [form, setForm] = useState({
     title: "", description: "", developer: "", field: "", endUser: "", module: "",
     startDate: new Date().toISOString().slice(0, 10),
     dueDate: "", priority: "medium" as Task["priority"],
   });
+
+  useEffect(() => {
+    (supabase as any)
+      .from("profiles")
+      .select("display_name")
+      .eq("role", "super_admin")
+      .then(({ data }: any) => {
+        if (data?.length) {
+          setSuperAdmins(data.map((p: any) => p.display_name || "").filter(Boolean));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  function creatorOptions(current: string): string[] {
+    const names = new Set(superAdmins);
+    if (current) names.add(current);
+    return [...names];
+  }
 
   const pid = currentProject?.id ?? null;
   const currentProj = pid ? projects.find((p) => p.id === pid) : null;
@@ -369,13 +390,18 @@ function TasksPage() {
                     {!canEditTask(t) ? (
                       <span className="text-[10px] font-mono text-muted-foreground">{t.createdBy || "—"}</span>
                     ) : (
-                      <input
+                      <select
                         value={t.createdBy}
                         onChange={(e) => updateTask(t.id, { createdBy: e.target.value })}
-                        className="w-28 px-1 py-0.5 bg-transparent border border-transparent hover:border-border focus:border-primary rounded text-[10px] font-mono text-muted-foreground focus:outline-none focus:bg-surface-2"
-                        title="Edit created by"
                         onClick={(e) => e.stopPropagation()}
-                      />
+                        className="text-[10px] font-mono text-muted-foreground px-1 py-0.5 rounded border border-transparent hover:border-border focus:border-primary bg-transparent cursor-pointer focus:outline-none focus:bg-surface-2"
+                        title="Edit created by"
+                      >
+                        <option value="">—</option>
+                        {creatorOptions(t.createdBy).map((name) => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                      </select>
                     )}
                   </Td>
                   <Td>
@@ -634,12 +660,16 @@ function TasksPage() {
                   {!canEditTask(selectedTask) ? (
                     <span className="text-sm">{selectedTask.createdBy || "—"}</span>
                   ) : (
-                    <input
+                    <select
                       value={selectedTask.createdBy}
                       onChange={(e) => updateTask(selectedTask.id, { createdBy: e.target.value })}
                       className="w-full px-2 py-1 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
-                      placeholder="—"
-                    />
+                    >
+                      <option value="">—</option>
+                      {creatorOptions(selectedTask.createdBy).map((name) => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
                   )}
                 </div>
               </div>

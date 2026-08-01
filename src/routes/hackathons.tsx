@@ -256,12 +256,15 @@ function HackathonsPage() {
       const isRegistered = myRegistrations?.has(eventId);
       if (isRegistered) {
         await db().from("event_registrations").delete().eq("event_id", eventId).eq("user_id", user.id);
+        return false;
       } else {
         await db().from("event_registrations").insert({ event_id: eventId, user_id: user.id });
+        return true;
       }
     },
-    onSuccess: () => {
+    onSuccess: (registered) => {
       queryClient.invalidateQueries({ queryKey: ["event-registrations"] });
+      toast.success(registered ? "Registered for event" : "Registration cancelled");
     },
     onError: () => toast.error("Could not update registration"),
   });
@@ -315,6 +318,7 @@ function HackathonsPage() {
       }
       toast.error("Failed to save deliverables");
     },
+    onSuccess: () => toast.success("Deliverables updated"),
   });
 
   useEffect(() => {

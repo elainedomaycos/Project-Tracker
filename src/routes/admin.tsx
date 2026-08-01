@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { Users, Shield, Code2, FlaskConical } from "lucide-react";
 import type { UserRole } from "@/lib/auth-context";
+import { toast } from "sonner";
 
 type ManagedUser = {
   id: string;
@@ -86,6 +87,9 @@ function AdminPage() {
       if (qaList.some((n) => n.toLowerCase() === oldName.toLowerCase())) {
         await supabase.from("settings").upsert({ key: "qa_users", value: replaceInList(qaList) });
       }
+      toast.success("Name updated");
+    } else {
+      toast.error("Failed to update name");
     }
   }
 
@@ -131,6 +135,9 @@ function AdminPage() {
           await supabase.from("settings").upsert({ key: "qa_users", value: qaList.filter((n) => n.toLowerCase() !== userName.toLowerCase()) });
         }
       }
+      toast.success("Role updated");
+    } else {
+      toast.error("Failed to update role");
     }
   }
 
