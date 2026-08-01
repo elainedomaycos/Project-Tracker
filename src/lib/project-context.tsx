@@ -310,6 +310,57 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Live-update projects from realtime changes (adds/edits/archives/deletes by other users)
+  useEffect(() => {
+    const channel = supabase
+      .channel("projects-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "projects" },
+        (payload: any) => {
+          if (payload.eventType === "DELETE") {
+            const id = payload.old?.id;
+            setAllProjects((prev) => prev.filter((p) => p.id !== id));
+            setAllTasks((prev) => prev.filter((t) => t.projectId !== id));
+          } else if (payload.eventType === "INSERT") {
+            setAllProjects((prev) =>
+              prev.some((p) => p.id === payload.new?.id) ? prev : [...prev, fromDbProject(payload.new)]
+            );
+          } else if (payload.eventType === "UPDATE") {
+            setAllProjects((prev) =>
+              prev.map((p) => (p.id === payload.new?.id ? fromDbProject(payload.new) : p))
+            );
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Keep the selected project in sync when another user archives, restores, or deletes it
+  useEffect(() => {
+    if (!currentProject) return;
+    const fresh = allProjects.find((p) => p.id === currentProject.id);
+    if (!fresh) {
+      const next = allProjects.find((p) => !p.archivedAt) ?? allProjects[0] ?? null;
+      setCurrentProjectState(next);
+      localStorage.setItem("selected-project-id", next ? next.id : "__all__");
+      return;
+    }
+    if (fresh.archivedAt !== currentProject.archivedAt) {
+      if (fresh.archivedAt) {
+        const next = allProjects.find((p) => !p.archivedAt && p.id !== fresh.id) ?? null;
+        setCurrentProjectState(next);
+        localStorage.setItem("selected-project-id", next ? next.id : "__all__");
+      } else {
+        setCurrentProjectState(fresh);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allProjects]);
+
   // Cache last-known data so the next load can render instantly instead of
   // waiting on Supabase (skip the transient pre-hydration defaults).
   useEffect(() => {

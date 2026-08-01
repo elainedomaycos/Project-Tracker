@@ -337,6 +337,37 @@ function HackathonsPage() {
     };
   }, [queryClient]);
 
+  // Live-update events when other users create/edit/delete events or link projects
+  useEffect(() => {
+    const channel = supabase
+      .channel("events-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "hackathons" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["hackathons"] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "hackathon_projects" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["hackathons"] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "event_registrations" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["event-registrations"] });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   const createMutation = useMutation({
     mutationFn: async (data: HackathonForm) => {
       const { error } = await db().from("hackathons").insert({

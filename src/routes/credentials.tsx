@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/console";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Plus, X, Eye, EyeOff, Copy, Key, CheckCircle2, Globe, Database, Mail, Lock } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/credentials")({
   head: () => ({
@@ -38,15 +40,28 @@ function generateId() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-const INITIAL_CREDS: Credential[] = [
-  { id: generateId(), type: "api", service: "Groq", key: "GROQ_API_KEY", value: "gsk_••••••••••••••••", url: "https://console.groq.com", description: "Llama 3.3 70B for AI Scrum features", createdAt: "2026-06-20" },
-  { id: generateId(), type: "database", service: "Supabase", key: "SUPABASE_URL", value: "https://jiiecdlxxzzskxcbfepi.supabase.co", description: "Project database and auth", createdAt: "2026-06-15" },
-  { id: generateId(), type: "login", service: "SMTP Server", username: "noreply@sprint.app", key: "SMTP_PASSWORD", value: "••••••••••••", url: "https://mail.example.com", description: "Email sending for notifications", createdAt: "2026-06-18" },
-  { id: generateId(), type: "api", service: "GitHub", key: "GITHUB_TOKEN", value: "ghp_••••••••••••••••", url: "https://github.com", description: "Repository access", createdAt: "2026-06-18" },
-];
+function fromDbCred(r: any): Credential {
+  return {
+    id: r.id,
+    type: r.type,
+    service: r.service,
+    username: r.username || undefined,
+    key: r.key,
+    value: r.value,
+    url: r.url || undefined,
+    description: r.description || "",
+    createdAt: (r.created_at || "").slice(0, 10),
+  };
+}
+
+async function fetchCreds(): Promise<Credential[]> {
+  const { data } = await (supabase as any).from("credentials").select("*").order("created_at", { ascending: false });
+  return (data ?? []).map(fromDbCred);
+}
 
 function Credentials() {
-  const [creds, setCreds] = useState<Credential[]>(INITIAL_CREDS);
+  const [creds, setCreds] = useState<Credential[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [visible, setVisible] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -63,6 +78,39 @@ function Credentials() {
 
   const Icon = TYPE_META[form.type].icon;
 
+  useEffect(() => {
+    let mounted = true;
+    fetchCreds()
+      .then((list) => {
+        if (!mounted) return;
+        setCreds(list);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Live-sync credentials so adds/removes by other users appear instantly
+  useEffect(() => {
+    const channel = supabase
+      .channel("credentials-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "credentials" },
+        () => {
+          fetchCreds().then(setCreds).catch(() => {});
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   function handleAdd() {
     if (!form.service.trim() || !form.key.trim() || !form.value.trim()) return;
     const entry: Credential = {
@@ -77,12 +125,33 @@ function Credentials() {
       createdAt: new Date().toISOString().slice(0, 10),
     };
     setCreds((prev) => [entry, ...prev]);
+    (supabase as any)
+      .from("credentials")
+      .insert({
+        id: entry.id,
+        type: entry.type,
+        service: entry.service,
+        username: entry.username ?? null,
+        key: entry.key,
+        value: entry.value,
+        url: entry.url ?? null,
+        description: entry.description,
+        created_at: new Date().toISOString(),
+      })
+      .then(() => toast.success("Credential added"))
+      .catch(() => toast.error("Failed to add credential"));
     setForm({ type: "api", service: "", username: "", key: "", value: "", url: "", description: "" });
     setShowModal(false);
   }
 
   function handleRemove(id: string) {
     setCreds((prev) => prev.filter((c) => c.id !== id));
+    (supabase as any)
+      .from("credentials")
+      .delete()
+      .eq("id", id)
+      .then(() => toast.success("Credential removed"))
+      .catch(() => toast.error("Failed to remove credential"));
   }
 
   function handleCopy(val: string, id: string) {
@@ -114,7 +183,12 @@ function Credentials() {
       />
 
       <div className="flex-1 overflow-y-auto p-6">
-        {creds.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center h-full text-center py-20">
+            <Key className="size-12 text-muted-foreground mb-4" />
+            <p className="text-sm font-medium text-muted-foreground">Loading credentials…</p>
+          </div>
+        ) : creds.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-20">
             <Key className="size-12 text-muted-foreground mb-4" />
             <p className="text-sm font-medium text-muted-foreground">No credentials stored</p>

@@ -15,7 +15,6 @@ import {
   Code2,
   FlaskConical,
   ExternalLink,
-  Sparkles,
   Key,
   BarChart3,
   ChevronDown,
@@ -146,7 +145,6 @@ const HACKATHON_NAV: readonly NavItem[] = [
 ];
 
 const EXTRA_NAV: readonly NavItem[] = [
-  { to: "/ai", label: "AI Tools", icon: Sparkles, roles: ["super_admin", "developer", "qa"] },
   { to: "/credentials", label: "Credentials", icon: Key, roles: ["super_admin", "developer", "qa"] },
   { to: "/archive", label: "Archive", icon: Archive, roles: ["super_admin"] },
   { to: "/admin", label: "Admin", icon: Shield, roles: ["super_admin", "developer", "qa"] },
