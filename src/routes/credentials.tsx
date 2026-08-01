@@ -2,8 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/console";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, X, Eye, EyeOff, Copy, Key, CheckCircle2, Globe, Database, Mail, Lock } from "lucide-react";
+import { Plus, X, Eye, EyeOff, Copy, Key, CheckCircle2, Globe, Database, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useProject } from "@/lib/project-context";
 
 export const Route = createFileRoute("/credentials")({
   head: () => ({
@@ -19,12 +20,14 @@ type CredType = "api" | "login" | "database" | "other";
 
 type Credential = {
   id: string;
+  projectId: string | null;
   type: CredType;
   service: string;
   username?: string;
   key: string;
   value: string;
   url?: string;
+  endUser: string;
   description: string;
   createdAt: string;
 };
@@ -43,12 +46,14 @@ function generateId() {
 function fromDbCred(r: any): Credential {
   return {
     id: r.id,
+    projectId: r.project_id ?? null,
     type: r.type,
     service: r.service,
     username: r.username || undefined,
     key: r.key,
     value: r.value,
     url: r.url || undefined,
+    endUser: r.end_user || "",
     description: r.description || "",
     createdAt: (r.created_at || "").slice(0, 10),
   };
@@ -59,23 +64,40 @@ async function fetchCreds(): Promise<Credential[]> {
   return (data ?? []).map(fromDbCred);
 }
 
+function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
+  return <th className={`text-left text-[10px] font-mono uppercase text-muted-foreground px-3 py-3 whitespace-nowrap ${className ?? ""}`}>{children}</th>;
+}
+
+function Td({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <td className={`px-3 py-3 ${className ?? ""}`}>{children}</td>;
+}
+
 function Credentials() {
+  const { currentProject, projects, archivedProjects } = useProject();
   const [creds, setCreds] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [visible, setVisible] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const pid = currentProject?.id ?? null;
+  const visibleCreds = pid ? creds.filter((c) => c.projectId === pid) : creds;
+  const allProjects = [...projects, ...archivedProjects];
+
   const [form, setForm] = useState({
+    projectId: pid ?? "",
     type: "api" as CredType,
     service: "",
     username: "",
     key: "",
     value: "",
     url: "",
+    endUser: "",
     description: "",
   });
 
+  const formProject = allProjects.find((p) => p.id === form.projectId);
+  const endUserOptions = formProject?.endUsers ?? [];
   const Icon = TYPE_META[form.type].icon;
 
   useEffect(() => {
@@ -111,16 +133,23 @@ function Credentials() {
     };
   }, []);
 
+  function openModal() {
+    setForm((p) => ({ ...p, projectId: pid ?? "" }));
+    setShowModal(true);
+  }
+
   function handleAdd() {
-    if (!form.service.trim() || !form.key.trim() || !form.value.trim()) return;
+    if (!form.projectId || !form.service.trim() || !form.key.trim() || !form.value.trim()) return;
     const entry: Credential = {
       id: generateId(),
+      projectId: form.projectId,
       type: form.type,
       service: form.service.trim(),
       username: form.username.trim() || undefined,
       key: form.key.trim(),
       value: form.value.trim(),
       url: form.url.trim() || undefined,
+      endUser: form.endUser,
       description: form.description.trim(),
       createdAt: new Date().toISOString().slice(0, 10),
     };
@@ -129,18 +158,20 @@ function Credentials() {
       .from("credentials")
       .insert({
         id: entry.id,
+        project_id: entry.projectId,
         type: entry.type,
         service: entry.service,
         username: entry.username ?? null,
         key: entry.key,
         value: entry.value,
         url: entry.url ?? null,
+        end_user: entry.endUser || null,
         description: entry.description,
         created_at: new Date().toISOString(),
       })
       .then(() => toast.success("Credential added"))
       .catch(() => toast.error("Failed to add credential"));
-    setForm({ type: "api", service: "", username: "", key: "", value: "", url: "", description: "" });
+    setForm({ projectId: pid ?? "", type: "api", service: "", username: "", key: "", value: "", url: "", endUser: "", description: "" });
     setShowModal(false);
   }
 
@@ -152,6 +183,16 @@ function Credentials() {
       .eq("id", id)
       .then(() => toast.success("Credential removed"))
       .catch(() => toast.error("Failed to remove credential"));
+  }
+
+  function handleUpdateEndUser(id: string, endUser: string) {
+    setCreds((prev) => prev.map((c) => (c.id === id ? { ...c, endUser } : c)));
+    (supabase as any)
+      .from("credentials")
+      .update({ end_user: endUser || null })
+      .eq("id", id)
+      .then(() => toast.success("Credential updated"))
+      .catch(() => toast.error("Failed to update credential"));
   }
 
   function handleCopy(val: string, id: string) {
@@ -170,10 +211,10 @@ function Credentials() {
     <>
       <PageHeader
         crumbs={[{ label: "Scrum AI" }, { label: "Credentials" }]}
-        status={{ label: `${creds.length} stored`, tone: "info" }}
+        status={{ label: `${visibleCreds.length} stored`, tone: "info" }}
         actions={
           <button
-            onClick={() => setShowModal(true)}
+            onClick={openModal}
             className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 flex items-center gap-1.5"
           >
             <Plus className="size-3.5" />
@@ -188,60 +229,108 @@ function Credentials() {
             <Key className="size-12 text-muted-foreground mb-4" />
             <p className="text-sm font-medium text-muted-foreground">Loading credentials…</p>
           </div>
-        ) : creds.length === 0 ? (
+        ) : visibleCreds.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-20">
             <Key className="size-12 text-muted-foreground mb-4" />
-            <p className="text-sm font-medium text-muted-foreground">No credentials stored</p>
-            <p className="text-xs text-muted-foreground mt-1">Add API keys, logins, database URLs, and other secrets for your project.</p>
+            <p className="text-sm font-medium text-muted-foreground">
+              {pid ? "No credentials for this project" : "No credentials stored"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {pid ? "Add a project login or API key and it will show up here." : "Select a project or add a credential to get started."}
+            </p>
           </div>
         ) : (
-          <div className="space-y-2 max-w-3xl">
-            {creds.map((c) => {
-              const isVisible = visible[c.id];
-              const TypeIcon = TYPE_META[c.type].icon;
-              return (
-                <div key={c.id} className="flex items-center gap-4 p-4 bg-card border border-border rounded-md">
-                  <div className="size-10 rounded-md bg-surface-2 border border-border grid place-items-center shrink-0">
-                    <TypeIcon className="size-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold">{c.service}</span>
-                      <span className="text-[9px] font-mono uppercase text-muted-foreground bg-surface-2 px-1 rounded">{TYPE_META[c.type].label}</span>
-                      <span className="text-[10px] font-mono text-muted-foreground bg-surface-2 px-1.5 rounded">{c.key}</span>
-                    </div>
-                    {c.username && (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        <span className="text-[10px] font-mono uppercase">Username:</span> {c.username}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 mt-1">
-                      <code className="text-xs font-mono text-muted-foreground break-all">
-                        {isVisible ? c.value : maskValue(c.value)}
-                      </code>
-                      <button onClick={() => setVisible((p) => ({ ...p, [c.id]: !isVisible }))} className="p-0.5 rounded hover:bg-surface-2 text-muted-foreground shrink-0" title={isVisible ? "Hide" : "Show"}>
-                        {isVisible ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
-                      </button>
-                      <button onClick={() => handleCopy(c.value, c.id)} className="p-0.5 rounded hover:bg-surface-2 text-muted-foreground shrink-0" title="Copy">
-                        {copiedId === c.id ? <CheckCircle2 className="size-3 text-success" /> : <Copy className="size-3" />}
-                      </button>
-                    </div>
-                    {c.description && <p className="text-[10px] text-muted-foreground mt-1">{c.description}</p>}
-                    {c.url && (
-                      <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline mt-0.5 inline-block">
-                        {c.url}
-                      </a>
-                    )}
-                  </div>
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className="text-[9px] font-mono text-muted-foreground">{c.createdAt}</span>
-                    <button onClick={() => handleRemove(c.id)} className="p-1 rounded hover:bg-surface-2 text-muted-foreground hover:text-destructive" title="Remove">
-                      <X className="size-3" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="overflow-x-auto border border-border rounded-lg">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-surface-2 border-b border-border">
+                  {!pid && <Th>Project</Th>}
+                  <Th>Type</Th>
+                  <Th className="min-w-[160px]">Service</Th>
+                  <Th>Key</Th>
+                  <Th>End User</Th>
+                  <Th className="min-w-[200px]">Value</Th>
+                  <Th>URL</Th>
+                  <Th>Created</Th>
+                  <Th></Th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleCreds.map((c) => {
+                  const isVisible = visible[c.id];
+                  const TypeIcon = TYPE_META[c.type].icon;
+                  const project = allProjects.find((p) => p.id === c.projectId);
+                  const userOptions = project?.endUsers ?? [];
+                  return (
+                    <tr key={c.id} className="border-b border-border/50 hover:bg-surface-2/50 align-middle">
+                      {!pid && (
+                        <Td>
+                          <span className="text-xs font-medium">{project?.name ?? "—"}</span>
+                        </Td>
+                      )}
+                      <Td>
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase text-muted-foreground bg-surface-2 px-1.5 py-0.5 rounded">
+                          <TypeIcon className="size-3 text-primary" />
+                          {TYPE_META[c.type].label}
+                        </span>
+                      </Td>
+                      <Td>
+                        <div className="text-xs font-semibold">{c.service}</div>
+                        {c.username && <div className="text-[10px] text-muted-foreground">{c.username}</div>}
+                        {c.description && <div className="text-[10px] text-muted-foreground">{c.description}</div>}
+                      </Td>
+                      <Td>
+                        <code className="text-[11px] font-mono text-muted-foreground">{c.key}</code>
+                      </Td>
+                      <Td>
+                        {userOptions.length ? (
+                          <select
+                            value={c.endUser}
+                            onChange={(e) => handleUpdateEndUser(c.id, e.target.value)}
+                            className="w-full min-w-[110px] px-2 py-1 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
+                          >
+                            <option value="">—</option>
+                            {userOptions.map((u) => (
+                              <option key={u} value={u}>{u}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">{c.endUser || "—"}</span>
+                        )}
+                      </Td>
+                      <Td>
+                        <div className="flex items-center gap-1.5">
+                          <code className="text-[11px] font-mono text-muted-foreground break-all">
+                            {isVisible ? c.value : maskValue(c.value)}
+                          </code>
+                          <button onClick={() => setVisible((p) => ({ ...p, [c.id]: !isVisible }))} className="p-0.5 rounded hover:bg-surface-2 text-muted-foreground shrink-0" title={isVisible ? "Hide" : "Show"}>
+                            {isVisible ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                          </button>
+                          <button onClick={() => handleCopy(c.value, c.id)} className="p-0.5 rounded hover:bg-surface-2 text-muted-foreground shrink-0" title="Copy">
+                            {copiedId === c.id ? <CheckCircle2 className="size-3 text-success" /> : <Copy className="size-3" />}
+                          </button>
+                        </div>
+                      </Td>
+                      <Td>
+                        {c.url ? (
+                          <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline whitespace-nowrap">{c.url}</a>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">—</span>
+                        )}
+                      </Td>
+                      <Td>
+                        <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">{c.createdAt}</span>
+                      </Td>
+                      <Td>
+                        <button onClick={() => handleRemove(c.id)} className="p-1 rounded hover:bg-surface-2 text-muted-foreground hover:text-destructive" title="Remove">
+                          <X className="size-3" />
+                        </button>
+                      </Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -254,6 +343,17 @@ function Credentials() {
               <button onClick={() => setShowModal(false)} className="p-1 rounded hover:bg-surface-2 text-muted-foreground"><X className="size-4" /></button>
             </div>
             <div className="p-5 space-y-4">
+              {!pid && (
+                <div>
+                  <label className="text-[10px] font-mono uppercase text-muted-foreground">Project *</label>
+                  <select value={form.projectId} onChange={(e) => setForm((p) => ({ ...p, projectId: e.target.value, endUser: "" }))} className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary">
+                    <option value="">Select project…</option>
+                    {projects.map((proj) => (
+                      <option key={proj.id} value={proj.id}>{proj.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="text-[10px] font-mono uppercase text-muted-foreground">Type</label>
                 <div className="grid grid-cols-4 gap-2 mt-1">
@@ -274,7 +374,7 @@ function Credentials() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-mono uppercase text-muted-foreground">Service *</label>
-                  <input value={form.service} onChange={(e) => setForm((p) => ({ ...p, service: e.target.value }))} placeholder="e.g. OpenAI, AWS, Gmail" className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" autoFocus />
+                  <input value={form.service} onChange={(e) => setForm((p) => ({ ...p, service: e.target.value }))} placeholder="e.g. Gmail, OpenAI, AWS" className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" autoFocus />
                 </div>
                 <div>
                   <label className="text-[10px] font-mono uppercase text-muted-foreground">Key Name *</label>
@@ -287,6 +387,15 @@ function Credentials() {
                   <input value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} placeholder="user@example.com" className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" />
                 </div>
               )}
+              <div>
+                <label className="text-[10px] font-mono uppercase text-muted-foreground">End User</label>
+                <select value={form.endUser} onChange={(e) => setForm((p) => ({ ...p, endUser: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary">
+                  <option value="">—</option>
+                  {endUserOptions.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="text-[10px] font-mono uppercase text-muted-foreground">Secret Value *</label>
                 <textarea value={form.value} onChange={(e) => setForm((p) => ({ ...p, value: e.target.value }))} placeholder={form.type === "login" ? "Enter password here" : form.type === "database" ? "postgresql://user:pass@host:5432/db" : "Paste the token or key here"} className="w-full mt-1 h-20 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary resize-none font-mono" />
@@ -302,7 +411,7 @@ function Credentials() {
             </div>
             <div className="flex justify-end gap-2 px-5 py-4 border-t border-border">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 text-xs font-medium rounded border border-border hover:bg-surface-2">Cancel</button>
-              <button onClick={handleAdd} disabled={!form.service.trim() || !form.key.trim() || !form.value.trim()} className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 disabled:opacity-50">Save Credential</button>
+              <button onClick={handleAdd} disabled={!form.projectId || !form.service.trim() || !form.key.trim() || !form.value.trim()} className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 disabled:opacity-50">Save Credential</button>
             </div>
           </div>
         </div>
