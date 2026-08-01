@@ -275,6 +275,33 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     load();
   }, []);
 
+  // Live-update tasks from realtime changes so edits by other users show up immediately
+  useEffect(() => {
+    const channel = supabase
+      .channel("tasks-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tasks" },
+        (payload: any) => {
+          if (payload.eventType === "DELETE") {
+            setAllTasks((prev) => prev.filter((t) => t.id !== payload.old?.id));
+          } else if (payload.eventType === "INSERT") {
+            setAllTasks((prev) =>
+              prev.some((t) => t.id === payload.new?.id) ? prev : [...prev, fromDbTask(payload.new)]
+            );
+          } else if (payload.eventType === "UPDATE") {
+            setAllTasks((prev) =>
+              prev.map((t) => (t.id === payload.new?.id ? fromDbTask(payload.new) : t))
+            );
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   // Cache last-known data so the next load can render instantly instead of
   // waiting on Supabase (skip the transient pre-hydration defaults).
   useEffect(() => {
@@ -387,6 +414,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       else if (k === "branch") dbUpdates.branch_name = v;
       else if (k === "endUser") dbUpdates.end_user = v;
       else if (k === "module") dbUpdates.module = v;
+      else if (k === "createdBy") dbUpdates.created_by = v;
       else dbUpdates[k] = v;
     }
     db().from("tasks").update(dbUpdates).eq("id", id).then(() => {}).catch(() => {});

@@ -366,7 +366,17 @@ function TasksPage() {
                     </div>
                   </Td>
                   <Td>
-                    <span className="text-[10px] font-mono text-muted-foreground">{t.createdBy || "—"}</span>
+                    {!canEditTask(t) ? (
+                      <span className="text-[10px] font-mono text-muted-foreground">{t.createdBy || "—"}</span>
+                    ) : (
+                      <input
+                        value={t.createdBy}
+                        onChange={(e) => updateTask(t.id, { createdBy: e.target.value })}
+                        className="w-28 px-1 py-0.5 bg-transparent border border-transparent hover:border-border focus:border-primary rounded text-[10px] font-mono text-muted-foreground focus:outline-none focus:bg-surface-2"
+                        title="Edit created by"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    )}
                   </Td>
                   <Td>
                     {!canEditTask(t) ? (
@@ -621,7 +631,16 @@ function TasksPage() {
                 </div>
                 <div>
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Created By</div>
-                  <span className="text-sm">{selectedTask.createdBy || "—"}</span>
+                  {!canEditTask(selectedTask) ? (
+                    <span className="text-sm">{selectedTask.createdBy || "—"}</span>
+                  ) : (
+                    <input
+                      value={selectedTask.createdBy}
+                      onChange={(e) => updateTask(selectedTask.id, { createdBy: e.target.value })}
+                      className="w-full px-2 py-1 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                      placeholder="—"
+                    />
+                  )}
                 </div>
               </div>
 

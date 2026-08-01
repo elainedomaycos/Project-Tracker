@@ -132,6 +132,16 @@ const EMPTY_FORM: HackathonForm = {
 
 const DEFAULT_DELIVERABLES = ["Register for event", "Prepare team/project", "Submit project"];
 
+function eventStatus(hack: HackathonData, items: string[], state: Record<string, boolean>): "upcoming" | "active" | "completed" {
+  const now = new Date();
+  const start = new Date(hack.start_date);
+  const end = new Date(hack.end_date);
+  const allChecked = items.length > 0 && items.every((d) => state[d]);
+  if (allChecked || (!Number.isNaN(end.getTime()) && end < now)) return "completed";
+  if (!Number.isNaN(start.getTime()) && start <= now && (Number.isNaN(end.getTime()) || end >= now)) return "active";
+  return "upcoming";
+}
+
 function HackathonsPage() {
   const { user, isSuperAdmin } = useAuth();
   const queryClient = useQueryClient();
@@ -441,10 +451,18 @@ function HackathonsPage() {
     }
   }
 
-  const filtered = (hackathons ?? []).filter((h) => {
-    if (filter === "all") return true;
-    return h.status === filter;
-  });
+  const filtered = (hackathons ?? [])
+    .map((h) => {
+      const dl = getEventDeliverables(h.id);
+      return { hack: h, dl, status: eventStatus(h, dl.items, dl.state) };
+    })
+    .filter(({ status }) => filter === "all" || status === filter)
+    .sort((a, b) => {
+      if (filter === "upcoming") return a.hack.start_date.localeCompare(b.hack.start_date);
+      if (filter === "active") return a.hack.end_date.localeCompare(b.hack.end_date);
+      if (filter === "completed") return b.hack.end_date.localeCompare(a.hack.end_date);
+      return b.hack.start_date.localeCompare(a.hack.start_date);
+    });
 
   return (
     <>
@@ -687,14 +705,13 @@ function HackathonsPage() {
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-start">
-            {filtered.map((hack) => {
-              const st = STATUS_CONFIG[hack.status ?? "upcoming"] ?? STATUS_CONFIG.upcoming;
+            {filtered.map(({ hack, dl, status }) => {
+              const st = STATUS_CONFIG[status];
               const cat = CATEGORY_MAP[hack.category ?? "hackathon"] ?? CATEGORY_MAP.other;
               const StIcon = st.icon;
               const expanded = expandedId === hack.id;
               const startDate = new Date(hack.start_date);
               const endDate = new Date(hack.end_date);
-              const dl = getEventDeliverables(hack.id);
 
               return (
                 <div key={hack.id} className={`bg-card border rounded-lg flex flex-col ${expanded ? "border-primary ring-1 ring-primary/20" : "border-border"}`}>
