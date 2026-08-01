@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { readCache, writeCache } from "@/lib/local-cache";
+import { useAuth } from "@/lib/auth-context";
 
 export type TaskStatus = "pending" | "doing" | "qa" | "done";
 export type QaStatus = "waiting" | "passed" | "failed";
@@ -24,6 +25,7 @@ export type Task = {
   completedAt: string;
   priority: "low" | "medium" | "high" | "critical";
   branch: string;
+  createdBy: string;
 };
 
 export type Project = {
@@ -63,7 +65,7 @@ type ProjectContextType = {
   archiveProject: (id: string) => void;
   restoreProject: (id: string) => void;
   removeProject: (id: string) => void;
-  addTask: (t: Omit<Task, "id" | "taskId">) => void;
+  addTask: (t: Omit<Task, "id" | "taskId" | "createdBy">) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   removeTask: (id: string) => void;
   nextTaskId: (projectId: string) => string;
@@ -145,6 +147,7 @@ function toDbTask(t: Task) {
     completed_at: t.completedAt,
     priority: t.priority,
     branch_name: t.branch,
+    created_by: t.createdBy,
   };
 }
 
@@ -168,6 +171,7 @@ function fromDbTask(r: any): Task {
     completedAt: r.completed_at || "",
     priority: r.priority || "medium",
     branch: r.branch_name || "",
+    createdBy: r.created_by || "",
   };
 }
 
@@ -197,6 +201,7 @@ const ProjectContext = createContext<ProjectContextType | null>(null);
 function db() { return supabase as any; }
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
+  const { profile } = useAuth();
   const [allProjects, setAllProjects] = useState<Project[]>(DEFAULT_PROJECTS);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [currentProject, setCurrentProjectState] = useState<Project | null>(() => getInitialProject(DEFAULT_PROJECTS));
@@ -350,11 +355,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     db().from("projects").delete().eq("id", id).then(() => {}).catch(() => {});
   }
 
-  function addTask(t: Omit<Task, "id" | "taskId">) {
+  function addTask(t: Omit<Task, "id" | "taskId" | "createdBy">) {
     const tid = nextTaskId(t.projectId);
     const slug = t.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30);
     const branch = `feature/${tid.toLowerCase()}-${slug}`;
-    const task: Task = { id: generateId(), taskId: tid, branch, endUser: "", module: "", ...t };
+    const task: Task = { id: generateId(), taskId: tid, branch, endUser: "", module: "", createdBy: profile?.name || "", ...t };
     setAllTasks((prev) => [...prev, task]);
     db().from("tasks").insert(toDbTask(task)).then(() => {}).catch(() => {});
   }

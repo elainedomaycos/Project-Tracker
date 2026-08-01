@@ -309,6 +309,7 @@ function TasksPage() {
                 <Th className="min-w-[250px]">Task</Th>
                 <Th className="min-w-[200px]">Description</Th>
                 <Th>Developer</Th>
+                <Th>Created By</Th>
                 <Th>Status</Th>
                 <Th>QA</Th>
                 <Th>Due</Th>
@@ -363,6 +364,9 @@ function TasksPage() {
                       </div>
                       <span className="text-xs">{t.developer || "—"}</span>
                     </div>
+                  </Td>
+                  <Td>
+                    <span className="text-[10px] font-mono text-muted-foreground">{t.createdBy || "—"}</span>
                   </Td>
                   <Td>
                     {!canEditTask(t) ? (
@@ -428,7 +432,7 @@ function TasksPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={!pid ? 11 : 10} className="text-center py-12 text-sm text-muted-foreground">
+                  <td colSpan={!pid ? 12 : 11} className="text-center py-12 text-sm text-muted-foreground">
                     {search || filterStatus !== "all" || filterDev !== "all" || filterPriority !== "all" || filterField !== "all" ? "No tasks match your filters." : "No tasks yet. Create your first task!"}
                   </td>
                 </tr>
@@ -614,6 +618,10 @@ function TasksPage() {
                   }`}>
                     {selectedTask.priority}
                   </span>
+                </div>
+                <div>
+                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Created By</div>
+                  <span className="text-sm">{selectedTask.createdBy || "—"}</span>
                 </div>
               </div>
 
