@@ -34,6 +34,7 @@ export type Project = {
   clientName: string;
   endUsers: string[];
   modules: string[];
+  archivedAt: string | null;
 };
 
 export type AppView = "pm" | "developer" | "qa" | "client";
@@ -47,6 +48,7 @@ type CachedProjectData = {
 
 type ProjectContextType = {
   projects: Project[];
+  archivedProjects: Project[];
   tasks: Task[];
   currentProject: Project | null;
   currentView: AppView;
@@ -58,6 +60,8 @@ type ProjectContextType = {
   setCurrentView: (v: AppView) => void;
   setCurrentDeveloper: (name: string) => void;
   addProject: (data: { name: string; clientName: string; endUsers: string[]; modules: string[] }) => void;
+  archiveProject: (id: string) => void;
+  restoreProject: (id: string) => void;
   removeProject: (id: string) => void;
   addTask: (t: Omit<Task, "id" | "taskId">) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
@@ -88,8 +92,8 @@ export type ProjectAnalytics = {
 };
 
 const DEFAULT_PROJECTS: Project[] = [
-  { id: "tourism", name: "Tourism Management System", prefix: "TS", createdAt: "2026-03-01", clientName: "", endUsers: [], modules: [] },
-  { id: "cbms", name: "CBMMS", prefix: "CBMMS", createdAt: "2026-02-15", clientName: "", endUsers: [], modules: [] },
+  { id: "tourism", name: "Tourism Management System", prefix: "TS", createdAt: "2026-03-01", clientName: "", endUsers: [], modules: [], archivedAt: null },
+  { id: "cbms", name: "CBMMS", prefix: "CBMMS", createdAt: "2026-02-15", clientName: "", endUsers: [], modules: [], archivedAt: null },
 ];
 
 const DEFAULT_DEVELOPERS = ["Rachel", "Mcdoel", "Alvin", "John", "Elaine", "Carl"];
@@ -173,6 +177,7 @@ function fromDbProject(r: any): Project {
     clientName: r.client_name || "",
     endUsers: r.end_users || [],
     modules: r.modules || [],
+    archivedAt: r.archived_at || null,
   };
 }
 
@@ -192,8 +197,8 @@ const ProjectContext = createContext<ProjectContextType | null>(null);
 function db() { return supabase as any; }
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
-  const [projects, setProjects] = useState<Project[]>(DEFAULT_PROJECTS);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [allProjects, setAllProjects] = useState<Project[]>(DEFAULT_PROJECTS);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [currentProject, setCurrentProjectState] = useState<Project | null>(() => getInitialProject(DEFAULT_PROJECTS));
   const [currentView, setCurrentView] = useState<AppView>("pm");
   const [currentDeveloper, setCurrentDeveloper] = useState("");
@@ -201,13 +206,20 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [qaUsers, setQaState] = useState<string[]>(["Sara", "Mike"]);
   const [loading, setLoading] = useState(true);
 
+  const projects = allProjects.filter((p) => !p.archivedAt);
+  const archivedProjects = allProjects.filter((p) => !!p.archivedAt);
+  const tasks = allTasks.filter((t) => {
+    const proj = allProjects.find((p) => p.id === t.projectId);
+    return !proj?.archivedAt;
+  });
+
   // Load from Supabase on mount
   useEffect(() => {
     async function load() {
       const cached = readCache<CachedProjectData>("project-data");
       if (cached) {
-        setProjects(cached.projects);
-        setTasks(cached.tasks);
+        setAllProjects(cached.projects);
+        setAllTasks(cached.tasks);
         setDeveloperState(cached.developers);
         setQaState(cached.qaUsers);
         setLoading(false);
@@ -220,8 +232,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           db().from("settings").select("value").eq("key", "qa_users").single(),
           db().from("profiles").select("display_name, email"),
         ]);
-        if (projRes.data?.length) setProjects(projRes.data.map(fromDbProject));
-        if (taskRes.data) setTasks(taskRes.data.map(fromDbTask));
+        if (projRes.data?.length) setAllProjects(projRes.data.map(fromDbProject));
+        if (taskRes.data) setAllTasks(taskRes.data.map(fromDbTask));
 
         const profileMap = new Map<string, string>();
         for (const p of profilesRes.data ?? []) {
@@ -259,30 +271,30 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   // waiting on Supabase (skip the transient pre-hydration defaults).
   useEffect(() => {
     if (loading) return;
-    writeCache<CachedProjectData>("project-data", { projects, tasks, developers, qaUsers });
-  }, [projects, tasks, developers, qaUsers, loading]);
+    writeCache<CachedProjectData>("project-data", { projects: allProjects, tasks: allTasks, developers, qaUsers });
+  }, [allProjects, allTasks, developers, qaUsers, loading]);
 
   // When fresh projects load from Supabase, re-validate the selection
-  const prevProjectsLen = useRef(projects.length);
+  const prevProjectsLen = useRef(allProjects.length);
   useEffect(() => {
-    if (prevProjectsLen.current === projects.length) return;
-    prevProjectsLen.current = projects.length;
+    if (prevProjectsLen.current === allProjects.length) return;
+    prevProjectsLen.current = allProjects.length;
     const saved = localStorage.getItem("selected-project-id");
     if (saved === "__all__") {
       setCurrentProjectState(null);
     } else if (saved && projects.find((p) => p.id === saved)) {
       setCurrentProjectState(projects.find((p) => p.id === saved)!);
-    } else if (!projects.find((p) => p.id === currentProject?.id)) {
+    } else if (currentProject && !projects.find((p) => p.id === currentProject.id)) {
       setCurrentProjectState(projects[0] ?? null);
     }
-  }, [projects]);
+  }, [allProjects]);
 
   function setCurrentProject(id: string | null) {
     if (id === null || id === "__all__") {
       setCurrentProjectState(null);
       localStorage.setItem("selected-project-id", "__all__");
     } else {
-      const found = projects.find((p) => p.id === id);
+      const found = allProjects.find((p) => p.id === id);
       if (found) {
         setCurrentProjectState(found);
         localStorage.setItem("selected-project-id", found.id);
@@ -297,8 +309,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     const p: Project = {
       id, name: data.name, prefix, createdAt: new Date().toISOString().slice(0, 10),
       clientName: data.clientName, endUsers: data.endUsers, modules: data.modules,
+      archivedAt: null,
     };
-    setProjects((prev) => [...prev, p]);
+    setAllProjects((prev) => [...prev, p]);
     setCurrentProjectState(p);
     localStorage.setItem("selected-project-id", p.id);
     db().from("projects").insert({
@@ -307,11 +320,28 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }).then(() => {}).catch(() => {});
   }
 
-  function removeProject(id: string) {
-    setProjects((prev) => prev.filter((p) => p.id !== id));
-    setTasks((prev) => prev.filter((t) => t.projectId !== id));
+  function archiveProject(id: string) {
+    const now = new Date().toISOString();
+    setAllProjects((prev) => prev.map((p) => (p.id === id ? { ...p, archivedAt: now } : p)));
     if (currentProject?.id === id) {
-      const remaining = projects.filter((p) => p.id !== id);
+      const remaining = allProjects.filter((p) => p.id !== id && !p.archivedAt);
+      const next = remaining[0] ?? null;
+      setCurrentProjectState(next);
+      localStorage.setItem("selected-project-id", next ? next.id : "__all__");
+    }
+    db().from("projects").update({ archived_at: now }).eq("id", id).then(() => {}).catch(() => {});
+  }
+
+  function restoreProject(id: string) {
+    setAllProjects((prev) => prev.map((p) => (p.id === id ? { ...p, archivedAt: null } : p)));
+    db().from("projects").update({ archived_at: null }).eq("id", id).then(() => {}).catch(() => {});
+  }
+
+  function removeProject(id: string) {
+    setAllProjects((prev) => prev.filter((p) => p.id !== id));
+    setAllTasks((prev) => prev.filter((t) => t.projectId !== id));
+    if (currentProject?.id === id) {
+      const remaining = allProjects.filter((p) => p.id !== id && !p.archivedAt);
       const next = remaining[0] ?? null;
       setCurrentProjectState(next);
       localStorage.setItem("selected-project-id", next ? next.id : "__all__");
@@ -325,12 +355,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     const slug = t.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30);
     const branch = `feature/${tid.toLowerCase()}-${slug}`;
     const task: Task = { id: generateId(), taskId: tid, branch, endUser: "", module: "", ...t };
-    setTasks((prev) => [...prev, task]);
+    setAllTasks((prev) => [...prev, task]);
     db().from("tasks").insert(toDbTask(task)).then(() => {}).catch(() => {});
   }
 
   function updateTask(id: string, updates: Partial<Task>) {
-    setTasks((prev) => prev.map((t) => {
+    setAllTasks((prev) => prev.map((t) => {
       if (t.id !== id) return t;
       const updated = { ...t, ...updates };
       if (updates.status === "done" && !updated.completedAt) {
@@ -355,7 +385,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }
 
   function removeTask(id: string) {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+    setAllTasks((prev) => prev.filter((t) => t.id !== id));
     db().from("tasks").delete().eq("id", id).then(() => {}).catch(() => {});
   }
 
@@ -460,10 +490,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   return (
     <ProjectContext.Provider value={{
-      projects, tasks, currentProject, currentView, currentDeveloper,
+      projects, archivedProjects, tasks, currentProject, currentView, currentDeveloper,
       developers, qaUsers, loading,
       setCurrentProject, setCurrentView, setCurrentDeveloper,
-      addProject, removeProject, addTask, updateTask, removeTask,
+      addProject, archiveProject, restoreProject, removeProject, addTask, updateTask, removeTask,
       nextTaskId, getProjectTasks, getDeveloperTasks, getQaTasks, getAnalytics,
       addDeveloper, removeDeveloper, addQaUser, removeQaUser,
     }}>
