@@ -28,7 +28,8 @@ function ArchivePage() {
             <div>
               <h2 className="text-lg font-semibold">Archived Projects</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Archived projects are hidden from the workspace. Restore them to bring them back, or permanently delete them.
+                Archived projects are hidden from the workspace. Restore them to bring them back, or
+                permanently delete them.
               </p>
             </div>
           </div>
@@ -51,7 +52,9 @@ function ArchivePage() {
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{p.name}</div>
                     <div className="text-[11px] text-muted-foreground">
-                      {p.archivedAt ? `Archived ${new Date(p.archivedAt).toLocaleDateString()}` : "Archived"}
+                      {p.archivedAt
+                        ? `Archived ${new Date(p.archivedAt).toLocaleDateString()}`
+                        : "Archived"}
                     </div>
                   </div>
                   <button
@@ -63,7 +66,11 @@ function ArchivePage() {
                   </button>
                   <button
                     onClick={() => {
-                      if (confirm(`Permanently delete "${p.name}" and all its tasks? This cannot be undone.`)) {
+                      if (
+                        confirm(
+                          `Permanently delete "${p.name}" and all its tasks? This cannot be undone.`,
+                        )
+                      ) {
                         removeProject(p.id);
                       }
                     }}

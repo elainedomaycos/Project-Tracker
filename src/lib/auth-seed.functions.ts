@@ -50,9 +50,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     role_title: "QA Engineer",
     bio: "Ensuring software quality through meticulous testing. Expertise in manual and automated testing strategies.",
     skills: ["Cypress", "Playwright", "Jest", "Manual Testing", "Bug Reporting"],
-    links: [
-      { type: "linkedin", url: "https://linkedin.com/in/sara-petrov" },
-    ],
+    links: [{ type: "linkedin", url: "https://linkedin.com/in/sara-petrov" }],
   },
 ];
 

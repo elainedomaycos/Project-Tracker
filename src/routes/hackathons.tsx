@@ -59,20 +59,58 @@ const LINK_CONFIG: Record<LinkType, { icon: typeof ExternalLink; label: string }
 };
 
 const CATEGORIES = [
-  { value: "hackathon", label: "Hackathon", color: "text-success", bg: "bg-success/10 border-success/20" },
+  {
+    value: "hackathon",
+    label: "Hackathon",
+    color: "text-success",
+    bg: "bg-success/10 border-success/20",
+  },
   { value: "convention", label: "Convention", color: "text-info", bg: "bg-info/10 border-info/20" },
-  { value: "conference", label: "Conference", color: "text-primary", bg: "bg-primary/10 border-primary/20" },
-  { value: "meetup", label: "Meetup", color: "text-warning", bg: "bg-warning/10 border-warning/20" },
-  { value: "workshop", label: "Workshop", color: "text-accent", bg: "bg-accent/10 border-accent/20" },
-  { value: "other", label: "Other", color: "text-muted-foreground", bg: "bg-surface-2 border-border" },
+  {
+    value: "conference",
+    label: "Conference",
+    color: "text-primary",
+    bg: "bg-primary/10 border-primary/20",
+  },
+  {
+    value: "meetup",
+    label: "Meetup",
+    color: "text-warning",
+    bg: "bg-warning/10 border-warning/20",
+  },
+  {
+    value: "workshop",
+    label: "Workshop",
+    color: "text-accent",
+    bg: "bg-accent/10 border-accent/20",
+  },
+  {
+    value: "other",
+    label: "Other",
+    color: "text-muted-foreground",
+    bg: "bg-surface-2 border-border",
+  },
 ];
 
 const CATEGORY_MAP = Object.fromEntries(CATEGORIES.map((c) => [c.value, c]));
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: typeof Calendar }> = {
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; bg: string; icon: typeof Calendar }
+> = {
   upcoming: { label: "Upcoming", color: "text-info", bg: "bg-info/10 border-info/20", icon: Clock },
-  active: { label: "Active", color: "text-success", bg: "bg-success/10 border-success/20", icon: Trophy },
-  completed: { label: "Completed", color: "text-muted-foreground", bg: "bg-surface-2 border-border", icon: CheckCircle2 },
+  active: {
+    label: "Active",
+    color: "text-success",
+    bg: "bg-success/10 border-success/20",
+    icon: Trophy,
+  },
+  completed: {
+    label: "Completed",
+    color: "text-muted-foreground",
+    bg: "bg-surface-2 border-border",
+    icon: CheckCircle2,
+  },
 };
 
 function db() {
@@ -132,13 +170,18 @@ const EMPTY_FORM: HackathonForm = {
 
 const DEFAULT_DELIVERABLES = ["Register for event", "Prepare team/project", "Submit project"];
 
-function eventStatus(hack: HackathonData, items: string[], state: Record<string, boolean>): "upcoming" | "active" | "completed" {
+function eventStatus(
+  hack: HackathonData,
+  items: string[],
+  state: Record<string, boolean>,
+): "upcoming" | "active" | "completed" {
   const now = new Date();
   const start = new Date(hack.start_date);
   const end = new Date(hack.end_date);
   const allChecked = items.length > 0 && items.every((d) => state[d]);
   if (allChecked || (!Number.isNaN(end.getTime()) && end < now)) return "completed";
-  if (!Number.isNaN(start.getTime()) && start <= now && (Number.isNaN(end.getTime()) || end >= now)) return "active";
+  if (!Number.isNaN(start.getTime()) && start <= now && (Number.isNaN(end.getTime()) || end >= now))
+    return "active";
   return "upcoming";
 }
 
@@ -255,7 +298,11 @@ function HackathonsPage() {
       if (!user?.id) return;
       const isRegistered = myRegistrations?.has(eventId);
       if (isRegistered) {
-        await db().from("event_registrations").delete().eq("event_id", eventId).eq("user_id", user.id);
+        await db()
+          .from("event_registrations")
+          .delete()
+          .eq("event_id", eventId)
+          .eq("user_id", user.id);
         return false;
       } else {
         await db().from("event_registrations").insert({ event_id: eventId, user_id: user.id });
@@ -271,10 +318,10 @@ function HackathonsPage() {
 
   const { data: deliverablesMap } = useQuery({
     queryKey: ["event-deliverables"],
-    queryFn: async (): Promise<Record<string, { items: string[]; state: Record<string, boolean> }>> => {
-      const { data } = await db()
-        .from("event_deliverables")
-        .select("event_id, items, state");
+    queryFn: async (): Promise<
+      Record<string, { items: string[]; state: Record<string, boolean> }>
+    > => {
+      const { data } = await db().from("event_deliverables").select("event_id, items, state");
       const map: Record<string, { items: string[]; state: Record<string, boolean> }> = {};
       for (const row of data ?? []) {
         map[row.event_id] = { items: row.items ?? [], state: row.state ?? {} };
@@ -293,14 +340,23 @@ function HackathonsPage() {
   }
 
   const deliverableMutation = useMutation({
-    mutationFn: async ({ eventId, items, state }: { eventId: string; items: string[]; state: Record<string, boolean> }) => {
-      const { error } = await db()
-        .from("event_deliverables")
-        .upsert({
+    mutationFn: async ({
+      eventId,
+      items,
+      state,
+    }: {
+      eventId: string;
+      items: string[];
+      state: Record<string, boolean>;
+    }) => {
+      const { error } = await db().from("event_deliverables").upsert(
+        {
           event_id: eventId,
           items,
           state,
-        }, { onConflict: "event_id" });
+        },
+        { onConflict: "event_id" },
+      );
       if (error) throw error;
     },
     onMutate: async ({ eventId, items, state }) => {
@@ -324,13 +380,9 @@ function HackathonsPage() {
   useEffect(() => {
     const channel = supabase
       .channel("event-deliverables-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "event_deliverables" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["event-deliverables"] });
-        }
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "event_deliverables" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["event-deliverables"] });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -341,26 +393,18 @@ function HackathonsPage() {
   useEffect(() => {
     const channel = supabase
       .channel("events-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "hackathons" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["hackathons"] });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "hackathon_projects" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["hackathons"] });
-        }
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "hackathons" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["hackathons"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "hackathon_projects" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["hackathons"] });
+      })
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "event_registrations" },
         () => {
           queryClient.invalidateQueries({ queryKey: ["event-registrations"] });
-        }
+        },
       )
       .subscribe();
     return () => {
@@ -370,19 +414,21 @@ function HackathonsPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: HackathonForm) => {
-      const { error } = await db().from("hackathons").insert({
-        name: data.name,
-        description: data.description ?? "",
-        theme: data.theme ?? "",
-        category: data.category ?? "hackathon",
-        start_date: data.start_date,
-        end_date: data.end_date,
-        location: data.location ?? "",
-        registration_url: data.registration_url ?? "",
-        announcement_url: data.announcement_url ?? "",
-        status: new Date(data.start_date) > new Date() ? "upcoming" : "active",
-        created_by: user!.id,
-      });
+      const { error } = await db()
+        .from("hackathons")
+        .insert({
+          name: data.name,
+          description: data.description ?? "",
+          theme: data.theme ?? "",
+          category: data.category ?? "hackathon",
+          start_date: data.start_date,
+          end_date: data.end_date,
+          location: data.location ?? "",
+          registration_url: data.registration_url ?? "",
+          announcement_url: data.announcement_url ?? "",
+          status: new Date(data.start_date) > new Date() ? "upcoming" : "active",
+          created_by: user!.id,
+        });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -412,17 +458,20 @@ function HackathonsPage() {
 
   const updateEventMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: HackathonForm }) => {
-      const { error } = await db().from("hackathons").update({
-        name: data.name,
-        description: data.description ?? "",
-        theme: data.theme ?? "",
-        category: data.category ?? "hackathon",
-        start_date: data.start_date,
-        end_date: data.end_date,
-        location: data.location ?? "",
-        registration_url: data.registration_url ?? "",
-        announcement_url: data.announcement_url ?? "",
-      }).eq("id", id);
+      const { error } = await db()
+        .from("hackathons")
+        .update({
+          name: data.name,
+          description: data.description ?? "",
+          theme: data.theme ?? "",
+          category: data.category ?? "hackathon",
+          start_date: data.start_date,
+          end_date: data.end_date,
+          location: data.location ?? "",
+          registration_url: data.registration_url ?? "",
+          announcement_url: data.announcement_url ?? "",
+        })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -543,46 +592,56 @@ function HackathonsPage() {
               <h3 className="text-sm font-semibold">{editingEvent ? "Edit Event" : "New Event"}</h3>
               {!editingEvent && (
                 <div className="flex items-center gap-1 border border-border rounded-lg p-0.5">
-                <button
-                  onClick={() => setFormMode("ai")}
-                  className={[
-                    "flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium rounded transition-colors",
-                    formMode === "ai" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-                  ].join(" ")}
-                >
-                  <Sparkles className="size-3" />
-                  AI Fill
-                </button>
-                <button
-                  onClick={() => setFormMode("manual")}
-                  className={[
-                    "flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium rounded transition-colors",
-                    formMode === "manual" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-                  ].join(" ")}
-                >
-                  <PenLine className="size-3" />
-                  Manual
-                </button>
-              </div>
+                  <button
+                    onClick={() => setFormMode("ai")}
+                    className={[
+                      "flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium rounded transition-colors",
+                      formMode === "ai"
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    ].join(" ")}
+                  >
+                    <Sparkles className="size-3" />
+                    AI Fill
+                  </button>
+                  <button
+                    onClick={() => setFormMode("manual")}
+                    className={[
+                      "flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium rounded transition-colors",
+                      formMode === "manual"
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    ].join(" ")}
+                  >
+                    <PenLine className="size-3" />
+                    Manual
+                  </button>
+                </div>
               )}
             </div>
 
-            {(formMode === "ai" && !editingEvent) ? (
+            {formMode === "ai" && !editingEvent ? (
               <div className="space-y-4">
                 <p className="text-xs text-muted-foreground">
-                  Paste any event info — poster text, email, announcement — and AI will extract the details.
+                  Paste any event info — poster text, email, announcement — and AI will extract the
+                  details.
                 </p>
                 <textarea
                   value={aiText}
                   onChange={(e) => setAiText(e.target.value)}
                   rows={6}
-                  placeholder={"Paste event info here...\n\nExample:\nDevConnect 2026 - Annual developer conference happening March 15-17 at SMX Convention Center, Manila. Register at https://devconnect.ph"}
+                  placeholder={
+                    "Paste event info here...\n\nExample:\nDevConnect 2026 - Annual developer conference happening March 15-17 at SMX Convention Center, Manila. Register at https://devconnect.ph"
+                  }
                   className="w-full px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary resize-none font-mono"
                 />
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
-                    onClick={() => { setShowNew(false); setAiText(""); }}
+                    onClick={() => {
+                      setShowNew(false);
+                      setAiText("");
+                    }}
                     className="px-3 py-1.5 text-xs font-medium rounded border border-border hover:bg-surface-2"
                   >
                     Cancel
@@ -614,24 +673,32 @@ function HackathonsPage() {
               >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="text-[10px] font-mono uppercase text-muted-foreground">Name *</label>
+                    <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                      Name *
+                    </label>
                     <input
                       {...form.register("name")}
                       placeholder="e.g. HackFest 2026"
                       className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
                     />
                     {form.formState.errors.name && (
-                      <p className="text-[10px] text-destructive mt-1">{form.formState.errors.name.message}</p>
+                      <p className="text-[10px] text-destructive mt-1">
+                        {form.formState.errors.name.message}
+                      </p>
                     )}
                   </div>
                   <div>
-                    <label className="text-[10px] font-mono uppercase text-muted-foreground">Category</label>
+                    <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                      Category
+                    </label>
                     <select
                       {...form.register("category")}
                       className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
                     >
                       {CATEGORIES.map((c) => (
-                        <option key={c.value} value={c.value}>{c.label}</option>
+                        <option key={c.value} value={c.value}>
+                          {c.label}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -639,7 +706,9 @@ function HackathonsPage() {
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="text-[10px] font-mono uppercase text-muted-foreground">Theme</label>
+                    <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                      Theme
+                    </label>
                     <input
                       {...form.register("theme")}
                       placeholder="e.g. AI for Good"
@@ -647,7 +716,9 @@ function HackathonsPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-mono uppercase text-muted-foreground">Registration Form URL</label>
+                    <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                      Registration Form URL
+                    </label>
                     <input
                       {...form.register("registration_url")}
                       placeholder="https://..."
@@ -657,7 +728,9 @@ function HackathonsPage() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-mono uppercase text-muted-foreground">Announcement / FB Post URL</label>
+                  <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                    Announcement / FB Post URL
+                  </label>
                   <input
                     {...form.register("announcement_url")}
                     placeholder="https://facebook.com/..."
@@ -666,7 +739,9 @@ function HackathonsPage() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-mono uppercase text-muted-foreground">Description</label>
+                  <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                    Description
+                  </label>
                   <textarea
                     {...form.register("description")}
                     rows={2}
@@ -677,7 +752,9 @@ function HackathonsPage() {
 
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div>
-                    <label className="text-[10px] font-mono uppercase text-muted-foreground">Start Date *</label>
+                    <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                      Start Date *
+                    </label>
                     <input
                       type="datetime-local"
                       {...form.register("start_date")}
@@ -685,7 +762,9 @@ function HackathonsPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-mono uppercase text-muted-foreground">End Date *</label>
+                    <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                      End Date *
+                    </label>
                     <input
                       type="datetime-local"
                       {...form.register("end_date")}
@@ -693,7 +772,9 @@ function HackathonsPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-mono uppercase text-muted-foreground">Location</label>
+                    <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                      Location
+                    </label>
                     <input
                       {...form.register("location")}
                       placeholder="e.g. Online"
@@ -705,7 +786,11 @@ function HackathonsPage() {
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
-                    onClick={() => { setShowNew(false); setEditingEvent(null); form.reset(EMPTY_FORM); }}
+                    onClick={() => {
+                      setShowNew(false);
+                      setEditingEvent(null);
+                      form.reset(EMPTY_FORM);
+                    }}
                     className="px-3 py-1.5 text-xs font-medium rounded border border-border hover:bg-surface-2"
                   >
                     Cancel
@@ -715,7 +800,11 @@ function HackathonsPage() {
                     disabled={createMutation.isPending || updateEventMutation.isPending}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 disabled:opacity-50"
                   >
-                    {(createMutation.isPending || updateEventMutation.isPending) ? <Loader2 className="size-3 animate-spin" /> : <Save className="size-3" />}
+                    {createMutation.isPending || updateEventMutation.isPending ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <Save className="size-3" />
+                    )}
                     {editingEvent ? "Save Changes" : "Create"}
                   </button>
                 </div>
@@ -749,7 +838,10 @@ function HackathonsPage() {
               const endDate = new Date(hack.end_date);
 
               return (
-                <div key={hack.id} className={`bg-card border rounded-lg flex flex-col ${expanded ? "border-primary ring-1 ring-primary/20" : "border-border"}`}>
+                <div
+                  key={hack.id}
+                  className={`bg-card border rounded-lg flex flex-col ${expanded ? "border-primary ring-1 ring-primary/20" : "border-border"}`}
+                >
                   <div
                     className="p-4 cursor-pointer hover:bg-surface-2/50 transition-colors flex flex-col h-[390px] overflow-hidden"
                     onClick={() => setExpandedId(expanded ? null : hack.id)}
@@ -794,7 +886,9 @@ function HackathonsPage() {
                     <div className="mt-auto pt-3 space-y-1.5 text-[10px] text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Calendar className="size-3 shrink-0" />
-                        <span className="truncate">{startDate.toLocaleDateString()} — {endDate.toLocaleDateString()}</span>
+                        <span className="truncate">
+                          {startDate.toLocaleDateString()} — {endDate.toLocaleDateString()}
+                        </span>
                       </div>
                       {hack.location && (
                         <div className="flex items-center gap-1">
@@ -804,7 +898,9 @@ function HackathonsPage() {
                       )}
                       <div className="flex items-center gap-1">
                         <Briefcase className="size-3 shrink-0" />
-                        <span>{hack.projects.length} project{hack.projects.length !== 1 ? "s" : ""}</span>
+                        <span>
+                          {hack.projects.length} project{hack.projects.length !== 1 ? "s" : ""}
+                        </span>
                       </div>
                       {hack.registration_url && (
                         <a
@@ -861,19 +957,32 @@ function HackathonsPage() {
                           state={dl.state}
                           onToggle={(text) => {
                             const nextState = { ...dl.state, [text]: !dl.state[text] };
-                            deliverableMutation.mutate({ eventId: hack.id, items: dl.items, state: nextState });
-                            const allDone = dl.items.length > 0 && dl.items.every((d) => nextState[d]);
+                            deliverableMutation.mutate({
+                              eventId: hack.id,
+                              items: dl.items,
+                              state: nextState,
+                            });
+                            const allDone =
+                              dl.items.length > 0 && dl.items.every((d) => nextState[d]);
                             if (allDone && !myRegistrations?.has(hack.id)) {
                               toggleRegistration.mutate(hack.id);
                             }
                           }}
                           onAdd={(text) => {
-                            deliverableMutation.mutate({ eventId: hack.id, items: [...dl.items, text], state: dl.state });
+                            deliverableMutation.mutate({
+                              eventId: hack.id,
+                              items: [...dl.items, text],
+                              state: dl.state,
+                            });
                           }}
                           onRemove={(index) => {
                             const next = [...dl.items];
                             next.splice(index, 1);
-                            deliverableMutation.mutate({ eventId: hack.id, items: next, state: dl.state });
+                            deliverableMutation.mutate({
+                              eventId: hack.id,
+                              items: next,
+                              state: dl.state,
+                            });
                           }}
                         />
                       </div>
@@ -888,7 +997,9 @@ function HackathonsPage() {
                             >
                               <div className="flex-1 min-w-0">
                                 <div className="text-xs font-medium truncate">{proj.name}</div>
-                                <div className="text-[9px] text-muted-foreground truncate">by {proj.owner_name}</div>
+                                <div className="text-[9px] text-muted-foreground truncate">
+                                  by {proj.owner_name}
+                                </div>
                               </div>
                               {proj.links.length > 0 && (
                                 <div className="flex items-center gap-1 shrink-0">
@@ -985,7 +1096,9 @@ function LinkProjectModal({
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["all-member-projects"],
-    queryFn: async (): Promise<{ id: string; name: string; short_description: string | null; owner_name: string }[]> => {
+    queryFn: async (): Promise<
+      { id: string; name: string; short_description: string | null; owner_name: string }[]
+    > => {
       const { data: memberProjects } = await db()
         .from("member_projects")
         .select("id, name, short_description, owner_id");
@@ -1023,10 +1136,7 @@ function LinkProjectModal({
   const filtered = (projects ?? []).filter((p) => {
     if (!search) return true;
     const q = search.toLowerCase();
-    return (
-      p.name.toLowerCase().includes(q) ||
-      p.owner_name.toLowerCase().includes(q)
-    );
+    return p.name.toLowerCase().includes(q) || p.owner_name.toLowerCase().includes(q);
   });
 
   return (
@@ -1037,7 +1147,10 @@ function LinkProjectModal({
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <span className="text-sm font-semibold">Link Project to Event</span>
-          <button onClick={onClose} className="p-1 rounded hover:bg-surface-2 text-muted-foreground">
+          <button
+            onClick={onClose}
+            className="p-1 rounded hover:bg-surface-2 text-muted-foreground"
+          >
             <X className="size-4" />
           </button>
         </div>
@@ -1061,9 +1174,7 @@ function LinkProjectModal({
               <Loader2 className="size-5 text-muted-foreground animate-spin" />
             </div>
           ) : filtered.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-8">
-              No projects found.
-            </p>
+            <p className="text-xs text-muted-foreground text-center py-8">No projects found.</p>
           ) : (
             filtered.map((proj) => {
               const alreadyLinked = linkedIds?.has(proj.id);
@@ -1093,7 +1204,13 @@ function LinkProjectModal({
   );
 }
 
-function DeliverablesProgress({ items, state }: { items: string[]; state: Record<string, boolean> }) {
+function DeliverablesProgress({
+  items,
+  state,
+}: {
+  items: string[];
+  state: Record<string, boolean>;
+}) {
   const done = items.filter((d) => state[d]).length;
   const pct = items.length > 0 ? Math.round((done / items.length) * 100) : 0;
   return (
@@ -1152,7 +1269,10 @@ function DeliverableList({
           />
           <span className={state[item] ? "line-through text-muted-foreground" : ""}>{item}</span>
           <button
-            onClick={(e) => { e.preventDefault(); onRemove(i); }}
+            onClick={(e) => {
+              e.preventDefault();
+              onRemove(i);
+            }}
             className="ml-auto p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-surface text-muted-foreground hover:text-destructive transition-all"
           >
             <X className="size-3" />
@@ -1173,7 +1293,12 @@ function DeliverableList({
           className="flex-1 px-2 py-1 bg-transparent border border-border rounded text-xs focus:outline-none focus:border-primary"
         />
         <button
-          onClick={() => { if (newItem.trim()) { onAdd(newItem.trim()); setNewItem(""); } }}
+          onClick={() => {
+            if (newItem.trim()) {
+              onAdd(newItem.trim());
+              setNewItem("");
+            }
+          }}
           disabled={!newItem.trim()}
           className="px-1.5 py-1 text-primary hover:bg-primary/10 rounded transition-colors disabled:opacity-30"
         >

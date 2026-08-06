@@ -72,7 +72,7 @@
   --popover: oklch(0.19 0.006 285);
   --popover-foreground: oklch(0.985 0 0);
 
-  --primary: oklch(0.65 0.19 255);            /* electric blue */
+  --primary: oklch(0.65 0.19 255); /* electric blue */
   --primary-foreground: oklch(0.145 0 0);
   --secondary: oklch(0.27 0.006 285);
   --secondary-foreground: oklch(0.985 0 0);
@@ -125,7 +125,9 @@
     border-color: var(--color-border);
   }
 
-  html, body, #root {
+  html,
+  body,
+  #root {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
@@ -139,7 +141,9 @@
 }
 
 @utility no-scrollbar {
-  &::-webkit-scrollbar { display: none; }
+  &::-webkit-scrollbar {
+    display: none;
+  }
   -ms-overflow-style: none;
   scrollbar-width: none;
 }

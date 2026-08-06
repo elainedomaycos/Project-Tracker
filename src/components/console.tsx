@@ -33,9 +33,7 @@ export function PageHeader({
           </span>
         ))}
         {status && (
-          <span
-            className={`ml-3 px-2 py-0.5 text-[10px] font-mono uppercase border ${toneClass}`}
-          >
+          <span className={`ml-3 px-2 py-0.5 text-[10px] font-mono uppercase border ${toneClass}`}>
             {status.label}
           </span>
         )}

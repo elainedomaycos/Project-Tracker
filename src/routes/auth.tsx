@@ -39,34 +39,55 @@ function AuthPage() {
 
     if (mode === "login") {
       const msg = await signIn(email, password);
-      if (msg) { setError(msg); return; }
+      if (msg) {
+        setError(msg);
+        return;
+      }
       navigate({ to: "/" });
     } else {
-      if (!name.trim()) { setError("Name is required"); return; }
+      if (!name.trim()) {
+        setError("Name is required");
+        return;
+      }
       const msg = await signUp(email, password, name);
-      if (msg) { setError(msg); return; }
+      if (msg) {
+        setError(msg);
+        return;
+      }
       setSuccess("Account created! Check your email to confirm, then sign in.");
     }
   }
 
   async function handleReset() {
-    if (!email.trim()) { setError("Enter your email first"); return; }
+    if (!email.trim()) {
+      setError("Enter your email first");
+      return;
+    }
     setResetting(true);
     setError(null);
     setSuccess(null);
     const msg = await resetPassword(email);
-    if (msg) { setError(msg); } else { setSuccess("Password reset link sent! Check your email."); }
+    if (msg) {
+      setError(msg);
+    } else {
+      setSuccess("Password reset link sent! Check your email.");
+    }
     setResetting(false);
   }
 
   async function handleUpdatePassword(e: React.FormEvent) {
     e.preventDefault();
-    if (!newPassword.trim()) { setError("Enter a new password"); return; }
+    if (!newPassword.trim()) {
+      setError("Enter a new password");
+      return;
+    }
     setUpdating(true);
     setError(null);
     setSuccess(null);
     const { error: err } = await supabase.auth.updateUser({ password: newPassword });
-    if (err) { setError(err.message); } else {
+    if (err) {
+      setError(err.message);
+    } else {
       setSuccess("Password updated! You can now sign in.");
       await supabase.auth.signOut();
     }
@@ -100,10 +121,14 @@ function AuthPage() {
             </div>
 
             {error && (
-              <div className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-md px-3 py-2">{error}</div>
+              <div className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-md px-3 py-2">
+                {error}
+              </div>
             )}
             {success && (
-              <div className="text-sm text-green-600 bg-green-500/5 border border-green-500/20 rounded-md px-3 py-2">{success}</div>
+              <div className="text-sm text-green-600 bg-green-500/5 border border-green-500/20 rounded-md px-3 py-2">
+                {success}
+              </div>
             )}
 
             <button
@@ -118,7 +143,9 @@ function AuthPage() {
           {success && (
             <div className="mt-6 text-center">
               <button
-                onClick={() => { setMode("login"); }}
+                onClick={() => {
+                  setMode("login");
+                }}
                 className="text-xs text-muted-foreground hover:text-foreground underline"
               >
                 Back to sign in
@@ -217,10 +244,16 @@ function AuthPage() {
 
         <div className="mt-6 text-center">
           <button
-            onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(null); setSuccess(null); }}
+            onClick={() => {
+              setMode(mode === "login" ? "signup" : "login");
+              setError(null);
+              setSuccess(null);
+            }}
             className="text-xs text-muted-foreground hover:text-foreground underline"
           >
-            {mode === "login" ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+            {mode === "login"
+              ? "Don't have an account? Sign up"
+              : "Already have an account? Sign in"}
           </button>
         </div>
       </div>

@@ -23,7 +23,11 @@ function QaPage() {
   const projectTasks = pid ? tasks.filter((t) => t.projectId === pid) : tasks;
   const projectName = (id: string) => projects.find((p) => p.id === id)?.name ?? id;
   const qaTasks = projectTasks.filter((t) => t.status === "qa" || t.qaStatus === "failed");
-  const allAnalytics = { qaPassed: projectTasks.filter((t) => t.qaStatus === "passed").length, qaFailed: projectTasks.filter((t) => t.qaStatus === "failed").length, qaWaiting: projectTasks.filter((t) => t.status === "qa").length };
+  const allAnalytics = {
+    qaPassed: projectTasks.filter((t) => t.qaStatus === "passed").length,
+    qaFailed: projectTasks.filter((t) => t.qaStatus === "failed").length,
+    qaWaiting: projectTasks.filter((t) => t.status === "qa").length,
+  };
 
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"id" | "title" | "developer" | "field" | "dueDate">("id");
@@ -43,7 +47,13 @@ function QaPage() {
       if (filterField !== "all" && t.field !== filterField) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
-        if (!t.taskId.toLowerCase().includes(q) && !t.title.toLowerCase().includes(q) && !t.developer.toLowerCase().includes(q) && !(t.description || "").toLowerCase().includes(q)) return false;
+        if (
+          !t.taskId.toLowerCase().includes(q) &&
+          !t.title.toLowerCase().includes(q) &&
+          !t.developer.toLowerCase().includes(q) &&
+          !(t.description || "").toLowerCase().includes(q)
+        )
+          return false;
       }
       return true;
     })
@@ -51,7 +61,10 @@ function QaPage() {
       let cmp = 0;
       switch (sortBy) {
         case "id": {
-          const parseId = (id: string) => { const parts = id.split("-").slice(1); return parts.reduce((acc, p) => acc * 1000 + (parseInt(p, 10) || 0), 0); };
+          const parseId = (id: string) => {
+            const parts = id.split("-").slice(1);
+            return parts.reduce((acc, p) => acc * 1000 + (parseInt(p, 10) || 0), 0);
+          };
           cmp = parseId(a.taskId) - parseId(b.taskId);
           break;
         }
@@ -71,10 +84,15 @@ function QaPage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
 
-  const hasActiveFilters = search.trim() !== "" || filterDev !== "all" || filterField !== "all" || filterStatus !== "all";
+  const hasActiveFilters =
+    search.trim() !== "" || filterDev !== "all" || filterField !== "all" || filterStatus !== "all";
 
   function handlePass(taskId: string) {
-    updateTask(taskId, { status: "done", qaStatus: "passed", completedAt: new Date().toISOString().slice(0, 10) });
+    updateTask(taskId, {
+      status: "done",
+      qaStatus: "passed",
+      completedAt: new Date().toISOString().slice(0, 10),
+    });
   }
 
   function handleFail(taskId: string) {
@@ -84,8 +102,14 @@ function QaPage() {
   return (
     <>
       <PageHeader
-        crumbs={[{ label: "Task Tracker" }, { label: currentProject?.name ?? "QA Review · All Projects" }]}
-        status={{ label: `${qaTasks.length} pending review`, tone: qaTasks.length > 0 ? "info" : "success" }}
+        crumbs={[
+          { label: "Task Tracker" },
+          { label: currentProject?.name ?? "QA Review · All Projects" },
+        ]}
+        status={{
+          label: `${qaTasks.length} pending review`,
+          tone: qaTasks.length > 0 ? "info" : "success",
+        }}
       />
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -137,7 +161,9 @@ function QaPage() {
             >
               <option value="all">All Devs</option>
               {uniqueDevs.map((d) => (
-                <option key={d} value={d}>{d}</option>
+                <option key={d} value={d}>
+                  {d}
+                </option>
               ))}
             </select>
           )}
@@ -149,7 +175,9 @@ function QaPage() {
             >
               <option value="all">All Fields</option>
               {uniqueFields.map((f) => (
-                <option key={f} value={f}>{f}</option>
+                <option key={f} value={f}>
+                  {f}
+                </option>
               ))}
             </select>
           )}
@@ -173,12 +201,16 @@ function QaPage() {
 
         {/* QA Queue */}
         <div>
-          <h2 className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-4">Waiting for QA</h2>
+          <h2 className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-4">
+            Waiting for QA
+          </h2>
           {filtered.length === 0 ? (
             <div className="text-center py-12">
               <CheckCircle2 className="size-10 text-success mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">
-                {hasActiveFilters ? "No tasks match your filters." : "All tasks are reviewed. Nothing waiting for QA."}
+                {hasActiveFilters
+                  ? "No tasks match your filters."
+                  : "All tasks are reviewed. Nothing waiting for QA."}
               </p>
             </div>
           ) : (
@@ -190,7 +222,9 @@ function QaPage() {
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="font-mono text-[10px] text-primary font-bold">{t.taskId}</span>
+                      <span className="font-mono text-[10px] text-primary font-bold">
+                        {t.taskId}
+                      </span>
                       {t.qaStatus === "failed" && (
                         <span className="flex items-center gap-1 text-[9px] font-mono text-destructive bg-destructive/10 px-1.5 py-0.5 rounded shrink-0">
                           <AlertTriangle className="size-2.5" />
@@ -201,13 +235,17 @@ function QaPage() {
                   </div>
 
                   {!pid && (
-                    <div className="text-[9px] font-mono uppercase text-muted-foreground mb-1.5">{projectName(t.projectId)}</div>
+                    <div className="text-[9px] font-mono uppercase text-muted-foreground mb-1.5">
+                      {projectName(t.projectId)}
+                    </div>
                   )}
 
                   <h3 className="text-sm font-medium truncate">{t.title}</h3>
 
                   {t.description && (
-                    <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{t.description}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
+                      {t.description}
+                    </p>
                   )}
 
                   <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
@@ -247,7 +285,13 @@ function QaPage() {
                       </>
                     ) : (
                       <span className="text-[9px] font-mono text-muted-foreground">
-                        {t.qaStatus === "waiting" ? "Waiting for QA" : t.qaStatus === "passed" ? "Passed" : t.qaStatus === "failed" ? "Failed — Rework" : "—"}
+                        {t.qaStatus === "waiting"
+                          ? "Waiting for QA"
+                          : t.qaStatus === "passed"
+                            ? "Passed"
+                            : t.qaStatus === "failed"
+                              ? "Failed — Rework"
+                              : "—"}
                       </span>
                     )}
                   </div>

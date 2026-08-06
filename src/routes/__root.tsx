@@ -89,9 +89,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Task Tracker — Simple Project & Task Management" },
-      { name: "description", content: "Lightweight task tracking for small teams. No Scrum jargon, just get work done." },
+      {
+        name: "description",
+        content: "Lightweight task tracking for small teams. No Scrum jargon, just get work done.",
+      },
       { property: "og:title", content: "Task Tracker" },
-      { property: "og:description", content: "Simple project and task management for small teams." },
+      {
+        property: "og:description",
+        content: "Simple project and task management for small teams.",
+      },
       { property: "og:type", content: "website" },
     ],
     links: [
@@ -137,7 +143,12 @@ const NAV_ITEMS: readonly NavItem[] = [
   { to: "/tasks", label: "Tasks", icon: ListChecks, roles: ["super_admin", "developer", "qa"] },
   { to: "/developer", label: "Developer", icon: Code2, roles: ["super_admin", "developer", "qa"] },
   { to: "/qa", label: "QA Review", icon: FlaskConical, roles: ["super_admin", "developer", "qa"] },
-  { to: "/client", label: "Client Portal", icon: ExternalLink, roles: ["super_admin", "developer", "qa"] },
+  {
+    to: "/client",
+    label: "Client Portal",
+    icon: ExternalLink,
+    roles: ["super_admin", "developer", "qa"],
+  },
 ];
 
 const HACKATHON_NAV: readonly NavItem[] = [
@@ -145,7 +156,12 @@ const HACKATHON_NAV: readonly NavItem[] = [
 ];
 
 const EXTRA_NAV: readonly NavItem[] = [
-  { to: "/credentials", label: "Credentials", icon: Key, roles: ["super_admin", "developer", "qa"] },
+  {
+    to: "/credentials",
+    label: "Credentials",
+    icon: Key,
+    roles: ["super_admin", "developer", "qa"],
+  },
   { to: "/archive", label: "Archive", icon: Archive, roles: ["super_admin"] },
   { to: "/admin", label: "Admin", icon: Shield, roles: ["super_admin", "developer", "qa"] },
 ];
@@ -306,11 +322,14 @@ function AppShell({ pathname, queryClient }: { pathname: string; queryClient: Qu
               className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors"
             >
               <div className="size-7 rounded-full bg-surface-2 border border-border grid place-items-center text-[9px] font-bold shrink-0">
-                {profile.name?.slice(0, 2).toUpperCase() || profile.email?.slice(0, 2).toUpperCase()}
+                {profile.name?.slice(0, 2).toUpperCase() ||
+                  profile.email?.slice(0, 2).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-medium truncate">{profile.name || "User"}</div>
-                <div className="text-[9px] font-mono text-muted-foreground capitalize truncate">{(profile.role || "developer").replace("_", " ")}</div>
+                <div className="text-[9px] font-mono text-muted-foreground capitalize truncate">
+                  {(profile.role || "developer").replace("_", " ")}
+                </div>
               </div>
             </Link>
           )}
@@ -342,8 +361,14 @@ function ProjectSelector() {
     addProject({
       name: form.name.trim(),
       clientName: form.clientName.trim(),
-      endUsers: form.endUsers.split(",").map((s) => s.trim()).filter(Boolean),
-      modules: form.modules.split(",").map((s) => s.trim()).filter(Boolean),
+      endUsers: form.endUsers
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+      modules: form.modules
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
     });
     setForm({ name: "", clientName: "", endUsers: "", modules: "" });
     setShowModal(false);
@@ -387,36 +412,87 @@ function ProjectSelector() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40" onClick={() => setShowModal(false)}>
-          <div className="w-full max-w-sm bg-card border border-border rounded-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/40"
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className="w-full max-w-sm bg-card border border-border rounded-lg shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <span className="text-sm font-semibold">New Project</span>
-              <button onClick={() => setShowModal(false)} className="p-1 rounded hover:bg-surface-2 text-muted-foreground">
+              <button
+                onClick={() => setShowModal(false)}
+                className="p-1 rounded hover:bg-surface-2 text-muted-foreground"
+              >
                 <X className="size-4" />
               </button>
             </div>
             <div className="p-4 space-y-3">
               <div>
-                <label className="text-[10px] font-mono uppercase text-muted-foreground">Project Name *</label>
-                <input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} placeholder="e.g. Tourism Website" className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" autoFocus />
-                <p className="text-[10px] text-muted-foreground mt-1">Task IDs will be auto-generated from the project name (e.g. TS-001)</p>
+                <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                  Project Name *
+                </label>
+                <input
+                  value={form.name}
+                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  placeholder="e.g. Tourism Website"
+                  className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                  autoFocus
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Task IDs will be auto-generated from the project name (e.g. TS-001)
+                </p>
               </div>
               <div>
-                <label className="text-[10px] font-mono uppercase text-muted-foreground">Client Name</label>
-                <input value={form.clientName} onChange={(e) => setForm((p) => ({ ...p, clientName: e.target.value }))} placeholder="e.g. Acme Corp" className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" />
+                <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                  Client Name
+                </label>
+                <input
+                  value={form.clientName}
+                  onChange={(e) => setForm((p) => ({ ...p, clientName: e.target.value }))}
+                  placeholder="e.g. Acme Corp"
+                  className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                />
               </div>
               <div>
-                <label className="text-[10px] font-mono uppercase text-muted-foreground">End Users</label>
-                <input value={form.endUsers} onChange={(e) => setForm((p) => ({ ...p, endUsers: e.target.value }))} placeholder="Comma-separated (e.g. Admin, Manager, Staff)" className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" />
+                <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                  End Users
+                </label>
+                <input
+                  value={form.endUsers}
+                  onChange={(e) => setForm((p) => ({ ...p, endUsers: e.target.value }))}
+                  placeholder="Comma-separated (e.g. Admin, Manager, Staff)"
+                  className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                />
               </div>
               <div>
-                <label className="text-[10px] font-mono uppercase text-muted-foreground">Modules</label>
-                <input value={form.modules} onChange={(e) => setForm((p) => ({ ...p, modules: e.target.value }))} placeholder="Comma-separated (e.g. Dashboard, Reports, Auth)" className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" />
+                <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                  Modules
+                </label>
+                <input
+                  value={form.modules}
+                  onChange={(e) => setForm((p) => ({ ...p, modules: e.target.value }))}
+                  placeholder="Comma-separated (e.g. Dashboard, Reports, Auth)"
+                  className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                />
               </div>
             </div>
             <div className="flex justify-end gap-2 px-4 py-3 border-t border-border">
-              <button onClick={() => setShowModal(false)} className="px-3 py-1.5 text-xs font-medium rounded border border-border hover:bg-surface-2">Cancel</button>
-              <button onClick={handleCreate} disabled={!form.name.trim()} className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 disabled:opacity-50">Create</button>
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-3 py-1.5 text-xs font-medium rounded border border-border hover:bg-surface-2"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={!form.name.trim()}
+                className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 disabled:opacity-50"
+              >
+                Create
+              </button>
             </div>
           </div>
         </div>

@@ -13,7 +13,11 @@ export type Profile = {
   role: UserRole;
 };
 
-const SUPER_ADMIN_EMAILS = ["edomaycos@gmail.com", "abellajoshua18@gmail.com", "allenmartillan715@gmail.com"];
+const SUPER_ADMIN_EMAILS = [
+  "edomaycos@gmail.com",
+  "abellajoshua18@gmail.com",
+  "allenmartillan715@gmail.com",
+];
 
 type AuthContextType = {
   user: User | null;
@@ -49,13 +53,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
       return Promise.race([
         promise,
-        new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)),
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms),
+        ),
       ]);
     }
 
     async function init() {
       try {
-        const { data: { session }, error } = await withTimeout(supabase.auth.getSession(), 10000);
+        const {
+          data: { session },
+          error,
+        } = await withTimeout(supabase.auth.getSession(), 10000);
         if (cancelled) return;
         if (error) {
           console.warn("[Auth] getSession error:", error.message);
@@ -80,7 +89,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.warn("[Auth] Supabase unreachable after retries — showing error");
             sessionStorage.removeItem("auth_retries");
           } else {
-            console.warn("[Auth] Supabase unreachable — clearing stale session, retry", attempts + 1);
+            console.warn(
+              "[Auth] Supabase unreachable — clearing stale session, retry",
+              attempts + 1,
+            );
             sessionStorage.setItem("auth_retries", String(attempts + 1));
             localStorage.clear();
             window.location.reload();
@@ -102,7 +114,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
-        try { await loadProfile(u.id, u.email ?? ""); } catch (e) {
+        try {
+          await loadProfile(u.id, u.email ?? "");
+        } catch (e) {
           console.warn("[Auth] loadProfile error on auth change:", e);
         }
       } else {
@@ -111,15 +125,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    return () => { cancelled = true; listener?.subscription.unsubscribe(); };
+    return () => {
+      cancelled = true;
+      listener?.subscription.unsubscribe();
+    };
   }, []);
 
   async function loadProfile(userId: string, email: string) {
-    const { data, error } = await db()
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
+    const { data, error } = await db().from("profiles").select("*").eq("id", userId).single();
 
     if (error) {
       console.warn("[Auth] profile query error:", error.message);
@@ -132,10 +145,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const authName = user?.user_metadata?.display_name || user?.user_metadata?.full_name || "";
       const profileName = data.display_name || authName || data.name || email.split("@")[0];
       if (isSuper && data.role !== "super_admin") {
-        finalProfile = { ...data, name: profileName, display_name: profileName, role: "super_admin" as const } as Profile;
-        await db().from("profiles").upsert({ id: userId, display_name: profileName, role: "super_admin", email });
+        finalProfile = {
+          ...data,
+          name: profileName,
+          display_name: profileName,
+          role: "super_admin" as const,
+        } as Profile;
+        await db()
+          .from("profiles")
+          .upsert({ id: userId, display_name: profileName, role: "super_admin", email });
       } else {
-        finalProfile = { ...data, name: profileName, display_name: profileName, role: (data.role || "developer") as UserRole } as Profile;
+        finalProfile = {
+          ...data,
+          name: profileName,
+          display_name: profileName,
+          role: (data.role || "developer") as UserRole,
+        } as Profile;
         if (!data.display_name || data.display_name.trim() === "") {
           await db().from("profiles").upsert({ id: userId, display_name: profileName });
         }
@@ -183,7 +208,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signUp(email: string, password: string, name: string): Promise<string | null> {
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: name } } });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { display_name: name } },
+      });
       if (error) return error.message;
       if (data.user) {
         const isSuper = SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
@@ -201,18 +230,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
         const displayName = profileName || email.split("@")[0];
-        const newProfile: Profile = { id: data.user.id, email, name: displayName, display_name: displayName, role };
-        await db().from("profiles").upsert({ id: data.user.id, display_name: displayName, role, email });
+        const newProfile: Profile = {
+          id: data.user.id,
+          email,
+          name: displayName,
+          display_name: displayName,
+          role,
+        };
+        await db()
+          .from("profiles")
+          .upsert({ id: data.user.id, display_name: displayName, role, email });
         try {
           if (role === "developer" || role === "qa") {
             const key = role === "developer" ? "developers" : "qa_users";
-            const { data: existing } = await db().from("settings").select("value").eq("key", key).maybeSingle();
+            const { data: existing } = await db()
+              .from("settings")
+              .select("value")
+              .eq("key", key)
+              .maybeSingle();
             const list: string[] = existing?.value ?? [];
             if (!list.some((n) => n.toLowerCase() === displayName.toLowerCase())) {
-              await db().from("settings").upsert({ key, value: [...list, displayName] });
+              await db()
+                .from("settings")
+                .upsert({ key, value: [...list, displayName] });
             }
           }
-        } catch { /* settings may not exist yet */ }
+        } catch {
+          /* settings may not exist yet */
+        }
         setProfile(newProfile);
       }
       return null;
@@ -224,7 +269,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signOut() {
     try {
       await supabase.auth.signOut();
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
     setUser(null);
     setProfile(null);
   }
@@ -241,8 +288,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const value: AuthContextType = {
-    user, profile, loading, recoveryMode,
-    signIn, signUp, signOut, resetPassword,
+    user,
+    profile,
+    loading,
+    recoveryMode,
+    signIn,
+    signUp,
+    signOut,
+    resetPassword,
     isSuperAdmin: profile?.role === "super_admin",
     isDeveloper: profile?.role === "developer",
     isQa: profile?.role === "qa",

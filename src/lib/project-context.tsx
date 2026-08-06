@@ -1,4 +1,12 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { readCache, writeCache } from "@/lib/local-cache";
 import { useAuth } from "@/lib/auth-context";
@@ -29,7 +37,10 @@ export type Task = {
   createdBy: string;
 };
 
-export type NewTaskInput = Omit<Task, "id" | "taskId" | "createdBy" | "branch" | "endUser" | "module"> &
+export type NewTaskInput = Omit<
+  Task,
+  "id" | "taskId" | "createdBy" | "branch" | "endUser" | "module"
+> &
   Partial<Pick<Task, "branch" | "endUser" | "module">>;
 
 export type Project = {
@@ -65,7 +76,12 @@ type ProjectContextType = {
   setCurrentProject: (id: string | null) => void;
   setCurrentView: (v: AppView) => void;
   setCurrentDeveloper: (name: string) => void;
-  addProject: (data: { name: string; clientName: string; endUsers: string[]; modules: string[] }) => void;
+  addProject: (data: {
+    name: string;
+    clientName: string;
+    endUsers: string[];
+    modules: string[];
+  }) => void;
   archiveProject: (id: string) => void;
   restoreProject: (id: string) => void;
   removeProject: (id: string) => void;
@@ -98,8 +114,26 @@ export type ProjectAnalytics = {
 };
 
 const DEFAULT_PROJECTS: Project[] = [
-  { id: "tourism", name: "Tourism Management System", prefix: "TS", createdAt: "2026-03-01", clientName: "", endUsers: [], modules: [], archivedAt: null },
-  { id: "cbms", name: "CBMMS", prefix: "CBMMS", createdAt: "2026-02-15", clientName: "", endUsers: [], modules: [], archivedAt: null },
+  {
+    id: "tourism",
+    name: "Tourism Management System",
+    prefix: "TS",
+    createdAt: "2026-03-01",
+    clientName: "",
+    endUsers: [],
+    modules: [],
+    archivedAt: null,
+  },
+  {
+    id: "cbms",
+    name: "CBMMS",
+    prefix: "CBMMS",
+    createdAt: "2026-02-15",
+    clientName: "",
+    endUsers: [],
+    modules: [],
+    archivedAt: null,
+  },
 ];
 
 const DEFAULT_DEVELOPERS = ["Rachel", "Mcdoel", "Alvin", "John", "Elaine", "Carl"];
@@ -123,8 +157,12 @@ function normalizeDevList(list: string[], profileMap: Map<string, string>): stri
 }
 
 const PIN_MAP: Record<string, string> = {
-  Rachel: "1111", Mcdoel: "2222", Alvin: "3333",
-  John: "4444", Elaine: "5555", Carl: "6666",
+  Rachel: "1111",
+  Mcdoel: "2222",
+  Alvin: "3333",
+  John: "4444",
+  Elaine: "5555",
+  Carl: "6666",
 };
 
 function generateId(): string {
@@ -181,7 +219,10 @@ function fromDbTask(r: any): Task {
 
 function fromDbProject(r: any): Project {
   return {
-    id: r.id, name: r.name, prefix: r.prefix, createdAt: r.created_at,
+    id: r.id,
+    name: r.name,
+    prefix: r.prefix,
+    createdAt: r.created_at,
     clientName: r.client_name || "",
     endUsers: r.end_users || [],
     modules: r.modules || [],
@@ -202,13 +243,17 @@ function getInitialProject(projects: Project[]): Project | null {
 
 const ProjectContext = createContext<ProjectContextType | null>(null);
 
-function db() { return supabase as any; }
+function db() {
+  return supabase as any;
+}
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const { profile } = useAuth();
   const [allProjects, setAllProjects] = useState<Project[]>(DEFAULT_PROJECTS);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
-  const [currentProject, setCurrentProjectState] = useState<Project | null>(() => getInitialProject(DEFAULT_PROJECTS));
+  const [currentProject, setCurrentProjectState] = useState<Project | null>(() =>
+    getInitialProject(DEFAULT_PROJECTS),
+  );
   const [currentView, setCurrentView] = useState<AppView>("pm");
   const [currentDeveloper, setCurrentDeveloper] = useState("");
   const [developers, setDeveloperState] = useState<string[]>(DEFAULT_DEVELOPERS);
@@ -264,14 +309,20 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           const cleaned = normalizeDevList(settingsDevs, profileMap);
           setDeveloperState(cleaned);
           if (JSON.stringify(cleaned) !== JSON.stringify(settingsDevs)) {
-            db().from("settings").upsert({ key: "developers", value: cleaned }).catch(() => {});
+            db()
+              .from("settings")
+              .upsert({ key: "developers", value: cleaned })
+              .catch(() => {});
           }
         }
         if (settingsQas.length) {
           const cleaned = normalizeDevList(settingsQas, profileMap);
           setQaState(cleaned);
           if (JSON.stringify(cleaned) !== JSON.stringify(settingsQas)) {
-            db().from("settings").upsert({ key: "qa_users", value: cleaned }).catch(() => {});
+            db()
+              .from("settings")
+              .upsert({ key: "qa_users", value: cleaned })
+              .catch(() => {});
           }
         }
       } catch (e) {
@@ -287,23 +338,19 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const channel = supabase
       .channel("tasks-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "tasks" },
-        (payload: any) => {
-          if (payload.eventType === "DELETE") {
-            setAllTasks((prev) => prev.filter((t) => t.id !== payload.old?.id));
-          } else if (payload.eventType === "INSERT") {
-            setAllTasks((prev) =>
-              prev.some((t) => t.id === payload.new?.id) ? prev : [...prev, fromDbTask(payload.new)]
-            );
-          } else if (payload.eventType === "UPDATE") {
-            setAllTasks((prev) =>
-              prev.map((t) => (t.id === payload.new?.id ? fromDbTask(payload.new) : t))
-            );
-          }
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, (payload: any) => {
+        if (payload.eventType === "DELETE") {
+          setAllTasks((prev) => prev.filter((t) => t.id !== payload.old?.id));
+        } else if (payload.eventType === "INSERT") {
+          setAllTasks((prev) =>
+            prev.some((t) => t.id === payload.new?.id) ? prev : [...prev, fromDbTask(payload.new)],
+          );
+        } else if (payload.eventType === "UPDATE") {
+          setAllTasks((prev) =>
+            prev.map((t) => (t.id === payload.new?.id ? fromDbTask(payload.new) : t)),
+          );
         }
-      )
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -324,14 +371,16 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
             setAllTasks((prev) => prev.filter((t) => t.projectId !== id));
           } else if (payload.eventType === "INSERT") {
             setAllProjects((prev) =>
-              prev.some((p) => p.id === payload.new?.id) ? prev : [...prev, fromDbProject(payload.new)]
+              prev.some((p) => p.id === payload.new?.id)
+                ? prev
+                : [...prev, fromDbProject(payload.new)],
             );
           } else if (payload.eventType === "UPDATE") {
             setAllProjects((prev) =>
-              prev.map((p) => (p.id === payload.new?.id ? fromDbProject(payload.new) : p))
+              prev.map((p) => (p.id === payload.new?.id ? fromDbProject(payload.new) : p)),
             );
           }
-        }
+        },
       )
       .subscribe();
     return () => {
@@ -365,7 +414,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   // waiting on Supabase (skip the transient pre-hydration defaults).
   useEffect(() => {
     if (loading) return;
-    writeCache<CachedProjectData>("project-data", { projects: allProjects, tasks: allTasks, developers, qaUsers });
+    writeCache<CachedProjectData>("project-data", {
+      projects: allProjects,
+      tasks: allTasks,
+      developers,
+      qaUsers,
+    });
   }, [allProjects, allTasks, developers, qaUsers, loading]);
 
   // When fresh projects load from Supabase, re-validate the selection
@@ -396,22 +450,49 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  function addProject(data: { name: string; clientName: string; endUsers: string[]; modules: string[] }) {
-    const id = data.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+  function addProject(data: {
+    name: string;
+    clientName: string;
+    endUsers: string[];
+    modules: string[];
+  }) {
+    const id = data.name
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "");
     const words = data.name.split(" ");
-    const prefix = words.map(w => w[0]).join("").toUpperCase().slice(0, 4) || "PRJ";
+    const prefix =
+      words
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 4) || "PRJ";
     const p: Project = {
-      id, name: data.name, prefix, createdAt: new Date().toISOString().slice(0, 10),
-      clientName: data.clientName, endUsers: data.endUsers, modules: data.modules,
+      id,
+      name: data.name,
+      prefix,
+      createdAt: new Date().toISOString().slice(0, 10),
+      clientName: data.clientName,
+      endUsers: data.endUsers,
+      modules: data.modules,
       archivedAt: null,
     };
     setAllProjects((prev) => [...prev, p]);
     setCurrentProjectState(p);
     localStorage.setItem("selected-project-id", p.id);
-    db().from("projects").insert({
-      id, name: data.name, prefix, created_at: p.createdAt,
-      client_name: data.clientName, end_users: data.endUsers, modules: data.modules,
-    }).then(() => notify("success", "Project created")).catch(() => notify("error", "Failed to create project"));
+    db()
+      .from("projects")
+      .insert({
+        id,
+        name: data.name,
+        prefix,
+        created_at: p.createdAt,
+        client_name: data.clientName,
+        end_users: data.endUsers,
+        modules: data.modules,
+      })
+      .then(() => notify("success", "Project created"))
+      .catch(() => notify("error", "Failed to create project"));
   }
 
   function archiveProject(id: string) {
@@ -423,12 +504,22 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setCurrentProjectState(next);
       localStorage.setItem("selected-project-id", next ? next.id : "__all__");
     }
-    db().from("projects").update({ archived_at: now }).eq("id", id).then(() => notify("success", "Project archived")).catch(() => notify("error", "Failed to archive project"));
+    db()
+      .from("projects")
+      .update({ archived_at: now })
+      .eq("id", id)
+      .then(() => notify("success", "Project archived"))
+      .catch(() => notify("error", "Failed to archive project"));
   }
 
   function restoreProject(id: string) {
     setAllProjects((prev) => prev.map((p) => (p.id === id ? { ...p, archivedAt: null } : p)));
-    db().from("projects").update({ archived_at: null }).eq("id", id).then(() => notify("success", "Project restored")).catch(() => notify("error", "Failed to restore project"));
+    db()
+      .from("projects")
+      .update({ archived_at: null })
+      .eq("id", id)
+      .then(() => notify("success", "Project restored"))
+      .catch(() => notify("error", "Failed to restore project"));
   }
 
   function removeProject(id: string) {
@@ -440,28 +531,56 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setCurrentProjectState(next);
       localStorage.setItem("selected-project-id", next ? next.id : "__all__");
     }
-    db().from("tasks").delete().eq("project_id", id).then(() => {}).catch(() => {});
-    db().from("projects").delete().eq("id", id).then(() => notify("success", "Project deleted")).catch(() => notify("error", "Failed to delete project"));
+    db()
+      .from("tasks")
+      .delete()
+      .eq("project_id", id)
+      .then(() => {})
+      .catch(() => {});
+    db()
+      .from("projects")
+      .delete()
+      .eq("id", id)
+      .then(() => notify("success", "Project deleted"))
+      .catch(() => notify("error", "Failed to delete project"));
   }
 
   function addTask(t: NewTaskInput) {
     const tid = nextTaskId(t.projectId);
-    const slug = t.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30);
+    const slug = t.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 30);
     const branch = `feature/${tid.toLowerCase()}-${slug}`;
-    const task: Task = { id: generateId(), taskId: tid, createdBy: profile?.name || "", ...t, branch: t.branch || branch, endUser: t.endUser || "", module: t.module || "" };
+    const task: Task = {
+      id: generateId(),
+      taskId: tid,
+      createdBy: profile?.name || "",
+      ...t,
+      branch: t.branch || branch,
+      endUser: t.endUser || "",
+      module: t.module || "",
+    };
     setAllTasks((prev) => [...prev, task]);
-    db().from("tasks").insert(toDbTask(task)).then(() => notify("success", "Task created")).catch(() => notify("error", "Failed to create task"));
+    db()
+      .from("tasks")
+      .insert(toDbTask(task))
+      .then(() => notify("success", "Task created"))
+      .catch(() => notify("error", "Failed to create task"));
   }
 
   function updateTask(id: string, updates: Partial<Task>) {
-    setAllTasks((prev) => prev.map((t) => {
-      if (t.id !== id) return t;
-      const updated = { ...t, ...updates };
-      if (updates.status === "done" && !updated.completedAt) {
-        updated.completedAt = new Date().toISOString().slice(0, 10);
-      }
-      return updated;
-    }));
+    setAllTasks((prev) =>
+      prev.map((t) => {
+        if (t.id !== id) return t;
+        const updated = { ...t, ...updates };
+        if (updates.status === "done" && !updated.completedAt) {
+          updated.completedAt = new Date().toISOString().slice(0, 10);
+        }
+        return updated;
+      }),
+    );
     const dbUpdates: Record<string, any> = {};
     for (const [k, v] of Object.entries(updates)) {
       if (k === "taskId") dbUpdates.task_id = v;
@@ -476,7 +595,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       else if (k === "createdBy") dbUpdates.created_by = v;
       else dbUpdates[k] = v;
     }
-    db().from("tasks").update(dbUpdates).eq("id", id)
+    db()
+      .from("tasks")
+      .update(dbUpdates)
+      .eq("id", id)
       .then(() => {
         if (taskEditToastTimer.current) clearTimeout(taskEditToastTimer.current);
         taskEditToastTimer.current = setTimeout(() => notify("success", "Task updated"), 600);
@@ -486,7 +608,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   function removeTask(id: string) {
     setAllTasks((prev) => prev.filter((t) => t.id !== id));
-    db().from("tasks").delete().eq("id", id).then(() => notify("success", "Task deleted")).catch(() => notify("error", "Failed to delete task"));
+    db()
+      .from("tasks")
+      .delete()
+      .eq("id", id)
+      .then(() => notify("success", "Task deleted"))
+      .catch(() => notify("error", "Failed to delete task"));
   }
 
   function nextTaskId(projectId: string): string {
@@ -530,9 +657,14 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       if (t.status === "done") entry.done++;
       devMap.set(t.developer, entry);
     });
-    const devProgress = Array.from(devMap.entries()).map(([name, d]) => ({
-      name, done: d.done, total: d.total, pct: d.total > 0 ? Math.round((d.done / d.total) * 100) : 0,
-    })).sort((a, b) => b.pct - a.pct);
+    const devProgress = Array.from(devMap.entries())
+      .map(([name, d]) => ({
+        name,
+        done: d.done,
+        total: d.total,
+        pct: d.total > 0 ? Math.round((d.done / d.total) * 100) : 0,
+      }))
+      .sort((a, b) => b.pct - a.pct);
     const fieldMap = new Map<string, { done: number; total: number }>();
     pt.forEach((t) => {
       if (!t.field) return;
@@ -541,13 +673,30 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       if (t.status === "done") entry.done++;
       fieldMap.set(t.field, entry);
     });
-    const fieldProgress = Array.from(fieldMap.entries()).map(([name, d]) => ({
-      name, done: d.done, total: d.total, pct: d.total > 0 ? Math.round((d.done / d.total) * 100) : 0,
-    })).sort((a, b) => b.pct - a.pct);
+    const fieldProgress = Array.from(fieldMap.entries())
+      .map(([name, d]) => ({
+        name,
+        done: d.done,
+        total: d.total,
+        pct: d.total > 0 ? Math.round((d.done / d.total) * 100) : 0,
+      }))
+      .sort((a, b) => b.pct - a.pct);
     const qaPassed = pt.filter((t) => t.qaStatus === "passed").length;
     const qaFailed = pt.filter((t) => t.qaStatus === "failed").length;
     const qaWaiting = pt.filter((t) => t.status === "qa" || t.qaStatus === "waiting").length;
-    return { total, done, qa, doing, pending, overallProgress, devProgress, fieldProgress, qaPassed, qaFailed, qaWaiting };
+    return {
+      total,
+      done,
+      qa,
+      doing,
+      pending,
+      overallProgress,
+      devProgress,
+      fieldProgress,
+      qaPassed,
+      qaFailed,
+      qaWaiting,
+    };
   }
 
   const addDeveloper = useCallback((name: string) => {
@@ -556,7 +705,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const key = name.trim().toLowerCase();
       if (prev.some((d) => d.toLowerCase() === key)) return prev;
       const next = [...prev, name.trim()];
-      db().from("settings").upsert({ key: "developers", value: next }).then(() => notify("success", "Developer added")).catch(() => notify("error", "Failed to add developer"));
+      db()
+        .from("settings")
+        .upsert({ key: "developers", value: next })
+        .then(() => notify("success", "Developer added"))
+        .catch(() => notify("error", "Failed to add developer"));
       return next;
     });
   }, []);
@@ -564,7 +717,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const removeDeveloper = useCallback((name: string) => {
     setDeveloperState((prev) => {
       const next = prev.filter((d) => d !== name);
-      db().from("settings").upsert({ key: "developers", value: next }).then(() => notify("success", "Developer removed")).catch(() => notify("error", "Failed to remove developer"));
+      db()
+        .from("settings")
+        .upsert({ key: "developers", value: next })
+        .then(() => notify("success", "Developer removed"))
+        .catch(() => notify("error", "Failed to remove developer"));
       return next;
     });
   }, []);
@@ -575,7 +732,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const key = name.trim().toLowerCase();
       if (prev.some((q) => q.toLowerCase() === key)) return prev;
       const next = [...prev, name.trim()];
-      db().from("settings").upsert({ key: "qa_users", value: next }).then(() => notify("success", "QA user added")).catch(() => notify("error", "Failed to add QA user"));
+      db()
+        .from("settings")
+        .upsert({ key: "qa_users", value: next })
+        .then(() => notify("success", "QA user added"))
+        .catch(() => notify("error", "Failed to add QA user"));
       return next;
     });
   }, []);
@@ -583,20 +744,48 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const removeQaUser = useCallback((name: string) => {
     setQaState((prev) => {
       const next = prev.filter((d) => d !== name);
-      db().from("settings").upsert({ key: "qa_users", value: next }).then(() => notify("success", "QA user removed")).catch(() => notify("error", "Failed to remove QA user"));
+      db()
+        .from("settings")
+        .upsert({ key: "qa_users", value: next })
+        .then(() => notify("success", "QA user removed"))
+        .catch(() => notify("error", "Failed to remove QA user"));
       return next;
     });
   }, []);
 
   return (
-    <ProjectContext.Provider value={{
-      projects, archivedProjects, tasks, currentProject, currentView, currentDeveloper,
-      developers, qaUsers, loading,
-      setCurrentProject, setCurrentView, setCurrentDeveloper,
-      addProject, archiveProject, restoreProject, removeProject, addTask, updateTask, removeTask,
-      nextTaskId, getProjectTasks, getDeveloperTasks, getQaTasks, getAnalytics,
-      addDeveloper, removeDeveloper, addQaUser, removeQaUser,
-    }}>
+    <ProjectContext.Provider
+      value={{
+        projects,
+        archivedProjects,
+        tasks,
+        currentProject,
+        currentView,
+        currentDeveloper,
+        developers,
+        qaUsers,
+        loading,
+        setCurrentProject,
+        setCurrentView,
+        setCurrentDeveloper,
+        addProject,
+        archiveProject,
+        restoreProject,
+        removeProject,
+        addTask,
+        updateTask,
+        removeTask,
+        nextTaskId,
+        getProjectTasks,
+        getDeveloperTasks,
+        getQaTasks,
+        getAnalytics,
+        addDeveloper,
+        removeDeveloper,
+        addQaUser,
+        removeQaUser,
+      }}
+    >
       {children}
     </ProjectContext.Provider>
   );

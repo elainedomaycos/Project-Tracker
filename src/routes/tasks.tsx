@@ -4,7 +4,20 @@ import { useState, useEffect } from "react";
 import { useProject, type Task, type TaskStatus, type QaStatus } from "@/lib/project-context";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, X, Search, GitBranch, Copy, CheckCircle2, Clock, AlertTriangle, FileCheck, Users, Puzzle, ArrowUpDown } from "lucide-react";
+import {
+  Plus,
+  X,
+  Search,
+  GitBranch,
+  Copy,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  FileCheck,
+  Users,
+  Puzzle,
+  ArrowUpDown,
+} from "lucide-react";
 
 export const Route = createFileRoute("/tasks")({
   head: () => ({
@@ -43,14 +56,23 @@ const QA_COLOR: Record<string, string> = {
   failed: "bg-destructive/10 text-destructive",
 };
 
-const FIELD_OPTIONS = [
-  "Full Stack", "Front End", "Back End", "Database", "UI/UX", "Testing",
-];
+const FIELD_OPTIONS = ["Full Stack", "Front End", "Back End", "Database", "UI/UX", "Testing"];
 
 function TasksPage() {
-  const { projects, currentProject, getProjectTasks, getAnalytics, addTask, updateTask, removeTask, nextTaskId, developers } = useProject();
+  const {
+    projects,
+    currentProject,
+    getProjectTasks,
+    getAnalytics,
+    addTask,
+    updateTask,
+    removeTask,
+    nextTaskId,
+    developers,
+  } = useProject();
   const { profile, isSuperAdmin, isDeveloper, isQa } = useAuth();
-  const canEditTask = (task: Task) => isSuperAdmin || (isDeveloper && task.developer === profile?.name);
+  const canEditTask = (task: Task) =>
+    isSuperAdmin || (isDeveloper && task.developer === profile?.name);
   const [showNewModal, setShowNewModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [search, setSearch] = useState("");
@@ -58,14 +80,22 @@ function TasksPage() {
   const [filterDev, setFilterDev] = useState<string>("all");
   const [filterPriority, setFilterPriority] = useState<string>("all");
   const [filterField, setFilterField] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<"id" | "priority" | "status" | "dueDate" | "developer">("id");
+  const [sortBy, setSortBy] = useState<"id" | "priority" | "status" | "dueDate" | "developer">(
+    "id",
+  );
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [superAdmins, setSuperAdmins] = useState<string[]>([]);
   const [form, setForm] = useState({
-    title: "", description: "", developer: "", field: "", endUser: "", module: "",
+    title: "",
+    description: "",
+    developer: "",
+    field: "",
+    endUser: "",
+    module: "",
     startDate: new Date().toISOString().slice(0, 10),
-    dueDate: "", priority: "medium" as Task["priority"],
+    dueDate: "",
+    priority: "medium" as Task["priority"],
   });
 
   useEffect(() => {
@@ -90,19 +120,24 @@ function TasksPage() {
   const pid = currentProject?.id ?? null;
   const currentProj = pid ? projects.find((p) => p.id === pid) : null;
   const tasks = pid ? getProjectTasks(pid) : useProject().tasks;
-  const analytics = pid ? getAnalytics(pid) : {
-    total: tasks.length,
-    done: tasks.filter((t) => t.status === "done").length,
-    qa: tasks.filter((t) => t.status === "qa").length,
-    doing: tasks.filter((t) => t.status === "doing").length,
-    pending: tasks.filter((t) => t.status === "pending").length,
-    overallProgress: tasks.length > 0 ? Math.round((tasks.filter((t) => t.status === "done").length / tasks.length) * 100) : 0,
-    devProgress: [],
-    fieldProgress: [],
-    qaPassed: 0,
-    qaFailed: 0,
-    qaWaiting: 0,
-  };
+  const analytics = pid
+    ? getAnalytics(pid)
+    : {
+        total: tasks.length,
+        done: tasks.filter((t) => t.status === "done").length,
+        qa: tasks.filter((t) => t.status === "qa").length,
+        doing: tasks.filter((t) => t.status === "doing").length,
+        pending: tasks.filter((t) => t.status === "pending").length,
+        overallProgress:
+          tasks.length > 0
+            ? Math.round((tasks.filter((t) => t.status === "done").length / tasks.length) * 100)
+            : 0,
+        devProgress: [],
+        fieldProgress: [],
+        qaPassed: 0,
+        qaFailed: 0,
+        qaWaiting: 0,
+      };
 
   const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
   const STATUS_ORDER: Record<string, number> = { doing: 0, pending: 1, qa: 2, done: 3 };
@@ -115,7 +150,12 @@ function TasksPage() {
       if (filterField !== "all" && t.field !== filterField) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
-        if (!t.taskId.toLowerCase().includes(q) && !t.title.toLowerCase().includes(q) && !t.developer.toLowerCase().includes(q)) return false;
+        if (
+          !t.taskId.toLowerCase().includes(q) &&
+          !t.title.toLowerCase().includes(q) &&
+          !t.developer.toLowerCase().includes(q)
+        )
+          return false;
       }
       return true;
     })
@@ -123,7 +163,10 @@ function TasksPage() {
       let cmp = 0;
       switch (sortBy) {
         case "id": {
-          const parseId = (id: string) => { const parts = id.split("-").slice(1); return parts.reduce((acc, p) => acc * 1000 + (parseInt(p, 10) || 0), 0); };
+          const parseId = (id: string) => {
+            const parts = id.split("-").slice(1);
+            return parts.reduce((acc, p) => acc * 1000 + (parseInt(p, 10) || 0), 0);
+          };
           cmp = parseId(a.taskId) - parseId(b.taskId);
           break;
         }
@@ -165,7 +208,17 @@ function TasksPage() {
       completedAt: "",
       priority: form.priority,
     });
-    setForm({ title: "", description: "", developer: "", field: "", endUser: "", module: "", startDate: new Date().toISOString().slice(0, 10), dueDate: "", priority: "medium" });
+    setForm({
+      title: "",
+      description: "",
+      developer: "",
+      field: "",
+      endUser: "",
+      module: "",
+      startDate: new Date().toISOString().slice(0, 10),
+      dueDate: "",
+      priority: "medium",
+    });
     setShowNewModal(false);
   }
 
@@ -177,7 +230,13 @@ function TasksPage() {
   }
 
   function copyBranchName(task: Task) {
-    const branch = task.branch || `feature/${task.taskId.toLowerCase()}-${task.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30)}`;
+    const branch =
+      task.branch ||
+      `feature/${task.taskId.toLowerCase()}-${task.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 30)}`;
     navigator.clipboard.writeText(branch).then(() => {
       setCopiedId(`branch-${task.id}`);
       setTimeout(() => setCopiedId(null), 1500);
@@ -227,7 +286,7 @@ function TasksPage() {
               <option value="developer">Sort: Developer</option>
             </select>
             <button
-              onClick={() => setSortDir((d) => d === "asc" ? "desc" : "asc")}
+              onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
               className="px-1.5 py-1.5 rounded-md bg-surface-2 border border-border text-xs hover:bg-surface-2/80 transition-colors"
               title={sortDir === "asc" ? "Ascending" : "Descending"}
             >
@@ -241,7 +300,9 @@ function TasksPage() {
           >
             <option value="all">All Status</option>
             {STATUS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
             ))}
           </select>
           {uniqueDevs.length > 0 && (
@@ -252,7 +313,9 @@ function TasksPage() {
             >
               <option value="all">All Devs</option>
               {uniqueDevs.map((d) => (
-                <option key={d} value={d}>{d}</option>
+                <option key={d} value={d}>
+                  {d}
+                </option>
               ))}
             </select>
           )}
@@ -275,7 +338,9 @@ function TasksPage() {
             >
               <option value="all">All Fields</option>
               {uniqueFields.map((f) => (
-                <option key={f} value={f}>{f}</option>
+                <option key={f} value={f}>
+                  {f}
+                </option>
               ))}
             </select>
           )}
@@ -310,11 +375,16 @@ function TasksPage() {
         {/* Progress Bar */}
         <div>
           <div className="flex items-center justify-between text-xs mb-1.5">
-            <span className="text-muted-foreground font-mono text-[10px] uppercase">Overall Progress</span>
+            <span className="text-muted-foreground font-mono text-[10px] uppercase">
+              Overall Progress
+            </span>
             <span className="font-bold font-mono">{analytics.overallProgress}%</span>
           </div>
           <div className="h-2.5 bg-white/5 rounded-full overflow-hidden">
-            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${analytics.overallProgress}%` }} />
+            <div
+              className="h-full rounded-full bg-primary transition-all"
+              style={{ width: `${analytics.overallProgress}%` }}
+            />
           </div>
         </div>
 
@@ -346,37 +416,54 @@ function TasksPage() {
                 >
                   {!pid && (
                     <Td>
-                      <span className="text-[10px] font-mono text-muted-foreground">{projects.find((p) => p.id === t.projectId)?.prefix ?? t.projectId}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        {projects.find((p) => p.id === t.projectId)?.prefix ?? t.projectId}
+                      </span>
                     </Td>
                   )}
                   <Td>
                     <div className="flex items-center gap-1.5">
                       <span className="font-mono text-xs font-bold text-primary">{t.taskId}</span>
                       <button
-                        onClick={(e) => { e.stopPropagation(); copyTaskId(t.taskId); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          copyTaskId(t.taskId);
+                        }}
                         className="p-0.5 rounded hover:bg-surface-2 text-muted-foreground"
                         title="Copy ID"
                       >
-                        {copiedId === t.taskId ? <CheckCircle2 className="size-3 text-success" /> : <Copy className="size-3" />}
+                        {copiedId === t.taskId ? (
+                          <CheckCircle2 className="size-3 text-success" />
+                        ) : (
+                          <Copy className="size-3" />
+                        )}
                       </button>
                     </div>
                   </Td>
                   <Td>
-                    <span className="text-[10px] font-mono text-muted-foreground">{t.endUser || "—"}</span>
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      {t.endUser || "—"}
+                    </span>
                   </Td>
                   <Td>
-                    <span className="text-[10px] font-mono text-muted-foreground">{t.module || "—"}</span>
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      {t.module || "—"}
+                    </span>
                   </Td>
                   <Td>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-medium truncate max-w-[300px]">{t.title}</span>
                       {t.priority === "high" || t.priority === "critical" ? (
-                        <AlertTriangle className={`size-3 shrink-0 ${t.priority === "critical" ? "text-destructive" : "text-warning"}`} />
+                        <AlertTriangle
+                          className={`size-3 shrink-0 ${t.priority === "critical" ? "text-destructive" : "text-warning"}`}
+                        />
                       ) : null}
                     </div>
                   </Td>
                   <Td>
-                    <span className="text-[10px] font-mono text-muted-foreground truncate max-w-[200px] block">{t.description || "—"}</span>
+                    <span className="text-[10px] font-mono text-muted-foreground truncate max-w-[200px] block">
+                      {t.description || "—"}
+                    </span>
                   </Td>
                   <Td>
                     <div className="flex items-center gap-1.5">
@@ -388,7 +475,9 @@ function TasksPage() {
                   </Td>
                   <Td>
                     {!canEditTask(t) ? (
-                      <span className="text-[10px] font-mono text-muted-foreground">{t.createdBy || "—"}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        {t.createdBy || "—"}
+                      </span>
                     ) : (
                       <select
                         value={t.createdBy}
@@ -399,14 +488,18 @@ function TasksPage() {
                       >
                         <option value="">—</option>
                         {creatorOptions(t.createdBy).map((name) => (
-                          <option key={name} value={name}>{name}</option>
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
                         ))}
                       </select>
                     )}
                   </Td>
                   <Td>
                     {!canEditTask(t) ? (
-                      <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${STATUS_COLOR[t.status]}`}>
+                      <span
+                        className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${STATUS_COLOR[t.status]}`}
+                      >
                         {STATUS_OPTIONS.find((o) => o.value === t.status)?.label}
                       </span>
                     ) : (
@@ -417,15 +510,25 @@ function TasksPage() {
                         className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border-none cursor-pointer ${STATUS_COLOR[t.status]}`}
                       >
                         {STATUS_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
                         ))}
                       </select>
                     )}
                   </Td>
                   <Td>
                     {isDeveloper ? (
-                      <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${QA_COLOR[t.qaStatus] || "text-muted-foreground"}`}>
-                        {t.qaStatus === "waiting" ? "Waiting" : t.qaStatus === "passed" ? "Pass" : t.qaStatus === "failed" ? "Fail" : "—"}
+                      <span
+                        className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${QA_COLOR[t.qaStatus] || "text-muted-foreground"}`}
+                      >
+                        {t.qaStatus === "waiting"
+                          ? "Waiting"
+                          : t.qaStatus === "passed"
+                            ? "Pass"
+                            : t.qaStatus === "failed"
+                              ? "Fail"
+                              : "—"}
                       </span>
                     ) : (
                       <select
@@ -435,13 +538,17 @@ function TasksPage() {
                         className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border-none cursor-pointer ${QA_COLOR[t.qaStatus] || "text-muted-foreground"}`}
                       >
                         {QA_OPTIONS.filter((o) => o.value !== "").map((o) => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
                         ))}
                       </select>
                     )}
                   </Td>
                   <Td>
-                    <span className={`text-[10px] font-mono ${t.dueDate && t.dueDate < new Date().toISOString().slice(0, 10) && t.status !== "done" ? "text-destructive" : "text-muted-foreground"}`}>
+                    <span
+                      className={`text-[10px] font-mono ${t.dueDate && t.dueDate < new Date().toISOString().slice(0, 10) && t.status !== "done" ? "text-destructive" : "text-muted-foreground"}`}
+                    >
                       {t.dueDate || "—"}
                     </span>
                   </Td>
@@ -460,7 +567,11 @@ function TasksPage() {
                         className="p-0.5 rounded hover:bg-surface-2 text-muted-foreground hover:text-primary shrink-0"
                         title="Copy branch name"
                       >
-                        {copiedId === `branch-${t.id}` ? <CheckCircle2 className="size-3 text-success" /> : <Copy className="size-3" />}
+                        {copiedId === `branch-${t.id}` ? (
+                          <CheckCircle2 className="size-3 text-success" />
+                        ) : (
+                          <Copy className="size-3" />
+                        )}
                       </button>
                     </div>
                   </Td>
@@ -468,8 +579,17 @@ function TasksPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={!pid ? 12 : 11} className="text-center py-12 text-sm text-muted-foreground">
-                    {search || filterStatus !== "all" || filterDev !== "all" || filterPriority !== "all" || filterField !== "all" ? "No tasks match your filters." : "No tasks yet. Create your first task!"}
+                  <td
+                    colSpan={!pid ? 12 : 11}
+                    className="text-center py-12 text-sm text-muted-foreground"
+                  >
+                    {search ||
+                    filterStatus !== "all" ||
+                    filterDev !== "all" ||
+                    filterPriority !== "all" ||
+                    filterField !== "all"
+                      ? "No tasks match your filters."
+                      : "No tasks yet. Create your first task!"}
                   </td>
                 </tr>
               )}
@@ -480,36 +600,79 @@ function TasksPage() {
 
       {/* New Task Modal */}
       {showNewModal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40" onClick={() => setShowNewModal(false)}>
-          <div className="w-full max-w-lg bg-card border border-border rounded-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/40"
+          onClick={() => setShowNewModal(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-card border border-border rounded-lg shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <span className="text-sm font-semibold">New Task · {currentProj?.name ?? "All Projects"} · <span className="text-primary font-mono">{nextTaskId(pid ?? "")}</span></span>
-              <button onClick={() => setShowNewModal(false)} className="p-1 rounded hover:bg-surface-2 text-muted-foreground">
+              <span className="text-sm font-semibold">
+                New Task · {currentProj?.name ?? "All Projects"} ·{" "}
+                <span className="text-primary font-mono">{nextTaskId(pid ?? "")}</span>
+              </span>
+              <button
+                onClick={() => setShowNewModal(false)}
+                className="p-1 rounded hover:bg-surface-2 text-muted-foreground"
+              >
                 <X className="size-4" />
               </button>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="text-[10px] font-mono uppercase text-muted-foreground">Title *</label>
-                <input value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} placeholder="Fix login redirect" className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" autoFocus />
+                <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                  Title *
+                </label>
+                <input
+                  value={form.title}
+                  onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                  placeholder="Fix login redirect"
+                  className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                  autoFocus
+                />
               </div>
               <div>
-                <label className="text-[10px] font-mono uppercase text-muted-foreground">Description</label>
-                <textarea value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} placeholder="Optional details" className="w-full mt-1 h-20 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary resize-none" />
+                <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                  Description
+                </label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                  placeholder="Optional details"
+                  className="w-full mt-1 h-20 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary resize-none"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-mono uppercase text-muted-foreground">Developer</label>
-                  <select value={form.developer} onChange={(e) => setForm((p) => ({ ...p, developer: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary">
+                  <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                    Developer
+                  </label>
+                  <select
+                    value={form.developer}
+                    onChange={(e) => setForm((p) => ({ ...p, developer: e.target.value }))}
+                    className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                  >
                     <option value="">Unassigned</option>
                     {developers.map((d) => (
-                      <option key={d} value={d}>{d}</option>
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-mono uppercase text-muted-foreground">Priority</label>
-                  <select value={form.priority} onChange={(e) => setForm((p) => ({ ...p, priority: e.target.value as Task["priority"] }))} className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary">
+                  <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                    Priority
+                  </label>
+                  <select
+                    value={form.priority}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, priority: e.target.value as Task["priority"] }))
+                    }
+                    className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                  >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
@@ -518,48 +681,97 @@ function TasksPage() {
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-mono uppercase text-muted-foreground">Field</label>
-                <select value={form.field} onChange={(e) => setForm((p) => ({ ...p, field: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary">
+                <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                  Field
+                </label>
+                <select
+                  value={form.field}
+                  onChange={(e) => setForm((p) => ({ ...p, field: e.target.value }))}
+                  className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                >
                   <option value="">—</option>
                   {FIELD_OPTIONS.map((f) => (
-                    <option key={f} value={f}>{f}</option>
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
                   ))}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-mono uppercase text-muted-foreground">End User</label>
-                  <select value={form.endUser} onChange={(e) => setForm((p) => ({ ...p, endUser: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary">
+                  <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                    End User
+                  </label>
+                  <select
+                    value={form.endUser}
+                    onChange={(e) => setForm((p) => ({ ...p, endUser: e.target.value }))}
+                    className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                  >
                     <option value="">—</option>
                     {(currentProj?.endUsers ?? []).map((u) => (
-                      <option key={u} value={u}>{u}</option>
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-mono uppercase text-muted-foreground">Module</label>
-                  <select value={form.module} onChange={(e) => setForm((p) => ({ ...p, module: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary">
+                  <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                    Module
+                  </label>
+                  <select
+                    value={form.module}
+                    onChange={(e) => setForm((p) => ({ ...p, module: e.target.value }))}
+                    className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                  >
                     <option value="">—</option>
                     {(currentProj?.modules ?? []).map((m) => (
-                      <option key={m} value={m}>{m}</option>
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
                     ))}
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-mono uppercase text-muted-foreground">Start Date</label>
-                  <input type="date" value={form.startDate} onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" />
+                  <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={form.startDate}
+                    onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))}
+                    className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                  />
                 </div>
                 <div>
-                  <label className="text-[10px] font-mono uppercase text-muted-foreground">Due Date</label>
-                  <input type="date" value={form.dueDate} onChange={(e) => setForm((p) => ({ ...p, dueDate: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" />
+                  <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                    Due Date
+                  </label>
+                  <input
+                    type="date"
+                    value={form.dueDate}
+                    onChange={(e) => setForm((p) => ({ ...p, dueDate: e.target.value }))}
+                    className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                  />
                 </div>
               </div>
             </div>
             <div className="flex justify-end gap-2 px-5 py-4 border-t border-border">
-              <button onClick={() => setShowNewModal(false)} className="px-4 py-2 text-xs font-medium rounded border border-border hover:bg-surface-2">Cancel</button>
-              <button onClick={handleCreate} disabled={!form.title.trim()} className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 disabled:opacity-50">Create Task</button>
+              <button
+                onClick={() => setShowNewModal(false)}
+                className="px-4 py-2 text-xs font-medium rounded border border-border hover:bg-surface-2"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={!form.title.trim()}
+                className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 disabled:opacity-50"
+              >
+                Create Task
+              </button>
             </div>
           </div>
         </div>
@@ -567,18 +779,31 @@ function TasksPage() {
 
       {/* Task Details Modal */}
       {selectedTask && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40" onClick={() => setSelectedTask(null)}>
-          <div className="w-full max-w-xl bg-card border border-border rounded-lg shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/40"
+          onClick={() => setSelectedTask(null)}
+        >
+          <div
+            className="w-full max-w-xl bg-card border border-border rounded-lg shadow-xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <span className="text-sm font-semibold flex items-center gap-2">
                 <FileCheck className="size-4 text-primary" />
                 Task Details
               </span>
-              <button onClick={() => setSelectedTask(null)} className="p-1 rounded hover:bg-surface-2 text-muted-foreground"><X className="size-4" /></button>
+              <button
+                onClick={() => setSelectedTask(null)}
+                className="p-1 rounded hover:bg-surface-2 text-muted-foreground"
+              >
+                <X className="size-4" />
+              </button>
             </div>
             <div className="p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <span className="font-mono text-lg font-bold text-primary">{selectedTask.taskId}</span>
+                <span className="font-mono text-lg font-bold text-primary">
+                  {selectedTask.taskId}
+                </span>
                 <div className="flex items-center gap-2">
                   <GitBranch className="size-3.5 text-muted-foreground" />
                   <input
@@ -592,26 +817,36 @@ function TasksPage() {
                     onClick={() => copyBranchName(selectedTask)}
                     className="flex items-center gap-1.5 px-2.5 py-1 bg-surface-2 border border-border rounded text-[10px] font-mono text-muted-foreground hover:text-foreground shrink-0"
                   >
-                    {copiedId === `branch-${selectedTask.id}` ? <CheckCircle2 className="size-3 text-success" /> : <Copy className="size-3" />}
+                    {copiedId === `branch-${selectedTask.id}` ? (
+                      <CheckCircle2 className="size-3 text-success" />
+                    ) : (
+                      <Copy className="size-3" />
+                    )}
                   </button>
                 </div>
               </div>
 
               <div>
-                <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Title</div>
+                <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
+                  Title
+                </div>
                 <div className="text-sm font-medium">{selectedTask.title}</div>
               </div>
 
               {selectedTask.description && (
                 <div>
-                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Description</div>
+                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
+                    Description
+                  </div>
                   <div className="text-sm text-muted-foreground">{selectedTask.description}</div>
                 </div>
               )}
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Developer</div>
+                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
+                    Developer
+                  </div>
                   {isSuperAdmin ? (
                     <select
                       value={selectedTask.developer}
@@ -620,7 +855,9 @@ function TasksPage() {
                     >
                       <option value="">Unassigned</option>
                       {developers.map((d) => (
-                        <option key={d} value={d}>{d}</option>
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
                       ))}
                     </select>
                   ) : (
@@ -633,30 +870,45 @@ function TasksPage() {
                   )}
                 </div>
                 <div>
-                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Field</div>
+                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
+                    Field
+                  </div>
                   <span className="text-sm">{selectedTask.field || "—"}</span>
                 </div>
                 <div>
-                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">End User</div>
+                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
+                    End User
+                  </div>
                   <span className="text-sm">{selectedTask.endUser || "—"}</span>
                 </div>
                 <div>
-                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Module</div>
+                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
+                    Module
+                  </div>
                   <span className="text-sm">{selectedTask.module || "—"}</span>
                 </div>
                 <div>
-                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Priority</div>
-                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
-                    selectedTask.priority === "critical" ? "bg-destructive/10 text-destructive" :
-                    selectedTask.priority === "high" ? "bg-warning/10 text-warning" :
-                    selectedTask.priority === "medium" ? "bg-info/10 text-info" :
-                    "bg-muted/10 text-muted-foreground"
-                  }`}>
+                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
+                    Priority
+                  </div>
+                  <span
+                    className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                      selectedTask.priority === "critical"
+                        ? "bg-destructive/10 text-destructive"
+                        : selectedTask.priority === "high"
+                          ? "bg-warning/10 text-warning"
+                          : selectedTask.priority === "medium"
+                            ? "bg-info/10 text-info"
+                            : "bg-muted/10 text-muted-foreground"
+                    }`}
+                  >
                     {selectedTask.priority}
                   </span>
                 </div>
                 <div>
-                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Created By</div>
+                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
+                    Created By
+                  </div>
                   {!canEditTask(selectedTask) ? (
                     <span className="text-sm">{selectedTask.createdBy || "—"}</span>
                   ) : (
@@ -667,7 +919,9 @@ function TasksPage() {
                     >
                       <option value="">—</option>
                       {creatorOptions(selectedTask.createdBy).map((name) => (
-                        <option key={name} value={name}>{name}</option>
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
                       ))}
                     </select>
                   )}
@@ -676,32 +930,46 @@ function TasksPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Status</div>
+                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
+                    Status
+                  </div>
                   {!canEditTask(selectedTask) ? (
-                    <span className={`text-xs font-mono font-bold px-2 py-1 rounded ${STATUS_COLOR[selectedTask.status]}`}>
+                    <span
+                      className={`text-xs font-mono font-bold px-2 py-1 rounded ${STATUS_COLOR[selectedTask.status]}`}
+                    >
                       {STATUS_OPTIONS.find((o) => o.value === selectedTask.status)?.label}
                     </span>
                   ) : (
                     <select
                       value={selectedTask.status}
-                      onChange={(e) => updateTask(selectedTask.id, { status: e.target.value as TaskStatus })}
+                      onChange={(e) =>
+                        updateTask(selectedTask.id, { status: e.target.value as TaskStatus })
+                      }
                       className={`text-xs font-mono font-bold px-2 py-1 rounded border-none cursor-pointer ${STATUS_COLOR[selectedTask.status]}`}
                     >
                       {STATUS_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
                       ))}
                     </select>
                   )}
                 </div>
                 <div>
-                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">QA Status</div>
+                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
+                    QA Status
+                  </div>
                   <select
                     value={selectedTask.qaStatus}
-                    onChange={(e) => updateTask(selectedTask.id, { qaStatus: e.target.value as QaStatus })}
+                    onChange={(e) =>
+                      updateTask(selectedTask.id, { qaStatus: e.target.value as QaStatus })
+                    }
                     className={`text-xs font-mono font-bold px-2 py-1 rounded border-none cursor-pointer ${QA_COLOR[selectedTask.qaStatus] || "text-muted-foreground"}`}
                   >
                     {QA_OPTIONS.filter((o) => o.value !== "").map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -709,28 +977,58 @@ function TasksPage() {
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Start Date</div>
-                  <input type="date" value={selectedTask.startDate || ""} onChange={(e) => updateTask(selectedTask.id, { startDate: e.target.value })} className="w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" readOnly={!isSuperAdmin} />
+                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
+                    Start Date
+                  </div>
+                  <input
+                    type="date"
+                    value={selectedTask.startDate || ""}
+                    onChange={(e) => updateTask(selectedTask.id, { startDate: e.target.value })}
+                    className="w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                    readOnly={!isSuperAdmin}
+                  />
                 </div>
                 <div>
-                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Due Date</div>
-                  <input type="date" value={selectedTask.dueDate || ""} onChange={(e) => updateTask(selectedTask.id, { dueDate: e.target.value })} className={`w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary ${selectedTask.dueDate && selectedTask.dueDate < new Date().toISOString().slice(0, 10) && selectedTask.status !== "done" ? "text-destructive font-bold" : ""}`} readOnly={!isSuperAdmin} />
+                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
+                    Due Date
+                  </div>
+                  <input
+                    type="date"
+                    value={selectedTask.dueDate || ""}
+                    onChange={(e) => updateTask(selectedTask.id, { dueDate: e.target.value })}
+                    className={`w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary ${selectedTask.dueDate && selectedTask.dueDate < new Date().toISOString().slice(0, 10) && selectedTask.status !== "done" ? "text-destructive font-bold" : ""}`}
+                    readOnly={!isSuperAdmin}
+                  />
                 </div>
                 <div>
-                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Completed</div>
-                  <input type="date" value={selectedTask.completedAt || ""} onChange={(e) => updateTask(selectedTask.id, { completedAt: e.target.value })} className="w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary" readOnly={!isSuperAdmin} />
+                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
+                    Completed
+                  </div>
+                  <input
+                    type="date"
+                    value={selectedTask.completedAt || ""}
+                    onChange={(e) => updateTask(selectedTask.id, { completedAt: e.target.value })}
+                    className="w-full px-3 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                    readOnly={!isSuperAdmin}
+                  />
                 </div>
               </div>
 
               {selectedTask.commit && (
                 <div>
-                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Commit</div>
-                  <code className="block p-2 bg-surface-2 border border-border rounded text-xs font-mono text-muted-foreground">{selectedTask.commit}</code>
+                  <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
+                    Commit
+                  </div>
+                  <code className="block p-2 bg-surface-2 border border-border rounded text-xs font-mono text-muted-foreground">
+                    {selectedTask.commit}
+                  </code>
                 </div>
               )}
 
               <div>
-                <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Remarks</div>
+                <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
+                  Remarks
+                </div>
                 <input
                   value={selectedTask.remarks}
                   onChange={(e) => updateTask(selectedTask.id, { remarks: e.target.value })}
@@ -743,13 +1041,21 @@ function TasksPage() {
             <div className="flex justify-between px-5 py-4 border-t border-border">
               {isSuperAdmin && (
                 <button
-                  onClick={() => { removeTask(selectedTask.id); setSelectedTask(null); }}
+                  onClick={() => {
+                    removeTask(selectedTask.id);
+                    setSelectedTask(null);
+                  }}
                   className="px-3 py-1.5 text-xs font-medium rounded border border-destructive/30 text-destructive hover:bg-destructive/10"
                 >
                   Delete Task
                 </button>
               )}
-              <button onClick={() => setSelectedTask(null)} className="px-4 py-2 text-xs font-medium rounded border border-border hover:bg-surface-2">Close</button>
+              <button
+                onClick={() => setSelectedTask(null)}
+                className="px-4 py-2 text-xs font-medium rounded border border-border hover:bg-surface-2"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
@@ -759,7 +1065,13 @@ function TasksPage() {
 }
 
 function Th({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <th className={`text-left text-[10px] font-mono uppercase text-muted-foreground px-3 py-3 whitespace-nowrap ${className ?? ""}`}>{children}</th>;
+  return (
+    <th
+      className={`text-left text-[10px] font-mono uppercase text-muted-foreground px-3 py-3 whitespace-nowrap ${className ?? ""}`}
+    >
+      {children}
+    </th>
+  );
 }
 
 function Td({ children, className }: { children: React.ReactNode; className?: string }) {
