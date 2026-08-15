@@ -16,7 +16,7 @@ export function PageHeader({
         ? "bg-info/10 text-info border-info/20"
         : "bg-success/10 text-success border-success/20";
   return (
-    <header className="h-14 shrink-0 flex items-center justify-between px-6 border-b border-border bg-surface/40">
+    <header className="h-14 shrink-0 flex items-center justify-between px-4 lg:px-6 border-b border-border bg-surface/40">
       <div className="flex items-center gap-2 text-sm min-w-0">
         {crumbs.map((c, i) => (
           <span key={i} className="flex items-center gap-2 min-w-0">
@@ -33,7 +33,9 @@ export function PageHeader({
           </span>
         ))}
         {status && (
-          <span className={`ml-3 px-2 py-0.5 text-[10px] font-mono uppercase border ${toneClass}`}>
+          <span
+            className={`hidden sm:inline-block ml-3 px-2 py-0.5 text-[10px] font-mono uppercase border ${toneClass}`}
+          >
             {status.label}
           </span>
         )}

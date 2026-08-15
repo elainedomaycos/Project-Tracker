@@ -29,7 +29,7 @@ function DeveloperPage() {
   } = useProject();
   const { profile, isSuperAdmin, isQa } = useAuth();
   const [filterDev, setFilterDev] = useState("all");
-  const [sortBy, setSortBy] = useState<"default" | "id-asc" | "id-desc">("default");
+  const [sortBy, setSortBy] = useState<"id-asc" | "id-desc">("id-desc");
   const [showUsers, setShowUsers] = useState(false);
   const [newDev, setNewDev] = useState("");
   const [newQa, setNewQa] = useState("");
@@ -47,8 +47,7 @@ function DeveloperPage() {
 
   const sorted = [...filtered].sort((a, b) => {
     if (sortBy === "id-asc") return parseTaskNum(a.taskId) - parseTaskNum(b.taskId);
-    if (sortBy === "id-desc") return parseTaskNum(b.taskId) - parseTaskNum(a.taskId);
-    return 0;
+    return parseTaskNum(b.taskId) - parseTaskNum(a.taskId);
   });
 
   const activeTasks = sorted.filter((t) => t.status !== "done");
@@ -103,9 +102,8 @@ function DeveloperPage() {
             onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
             className="px-3 py-1.5 rounded-md bg-surface-2 border border-border text-xs focus:outline-none focus:border-primary"
           >
-            <option value="default">Default</option>
-            <option value="id-asc">Task No. ↑</option>
-            <option value="id-desc">Task No. ↓</option>
+            <option value="id-desc">Task No. ↓ (newest)</option>
+            <option value="id-asc">Task No. ↑ (oldest)</option>
           </select>
           <span className="text-[10px] font-mono text-muted-foreground ml-auto">
             Showing {activeTasks.length} of {projectTasks.length} tasks

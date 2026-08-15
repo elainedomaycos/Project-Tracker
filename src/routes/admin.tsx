@@ -144,41 +144,33 @@ function AdminPage() {
             .upsert({ key: "developers", value: [...devList, userName] });
         }
         if (qaList.some((n) => n.toLowerCase() === userName.toLowerCase())) {
-          await supabase
-            .from("settings")
-            .upsert({
-              key: "qa_users",
-              value: qaList.filter((n) => n.toLowerCase() !== userName.toLowerCase()),
-            });
+          await supabase.from("settings").upsert({
+            key: "qa_users",
+            value: qaList.filter((n) => n.toLowerCase() !== userName.toLowerCase()),
+          });
         }
       } else if (newRole === "qa") {
         if (!qaList.some((n) => n.toLowerCase() === userName.toLowerCase())) {
           await supabase.from("settings").upsert({ key: "qa_users", value: [...qaList, userName] });
         }
         if (devList.some((n) => n.toLowerCase() === userName.toLowerCase())) {
-          await supabase
-            .from("settings")
-            .upsert({
-              key: "developers",
-              value: devList.filter((n) => n.toLowerCase() !== userName.toLowerCase()),
-            });
+          await supabase.from("settings").upsert({
+            key: "developers",
+            value: devList.filter((n) => n.toLowerCase() !== userName.toLowerCase()),
+          });
         }
       } else {
         if (devList.some((n) => n.toLowerCase() === userName.toLowerCase())) {
-          await supabase
-            .from("settings")
-            .upsert({
-              key: "developers",
-              value: devList.filter((n) => n.toLowerCase() !== userName.toLowerCase()),
-            });
+          await supabase.from("settings").upsert({
+            key: "developers",
+            value: devList.filter((n) => n.toLowerCase() !== userName.toLowerCase()),
+          });
         }
         if (qaList.some((n) => n.toLowerCase() === userName.toLowerCase())) {
-          await supabase
-            .from("settings")
-            .upsert({
-              key: "qa_users",
-              value: qaList.filter((n) => n.toLowerCase() !== userName.toLowerCase()),
-            });
+          await supabase.from("settings").upsert({
+            key: "qa_users",
+            value: qaList.filter((n) => n.toLowerCase() !== userName.toLowerCase()),
+          });
         }
       }
       toast.success("Role updated");

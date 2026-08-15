@@ -35,13 +35,14 @@ export type Task = {
   priority: "low" | "medium" | "high" | "critical";
   branch: string;
   createdBy: string;
+  timelineItemId: string;
 };
 
 export type NewTaskInput = Omit<
   Task,
-  "id" | "taskId" | "createdBy" | "branch" | "endUser" | "module"
+  "id" | "taskId" | "createdBy" | "branch" | "endUser" | "module" | "timelineItemId"
 > &
-  Partial<Pick<Task, "branch" | "endUser" | "module">>;
+  Partial<Pick<Task, "branch" | "endUser" | "module" | "timelineItemId">>;
 
 export type Project = {
   id: string;
@@ -194,34 +195,70 @@ function toDbTask(t: Task) {
     priority: t.priority,
     branch_name: t.branch,
     created_by: t.createdBy,
+    timeline_item_id: t.timelineItemId || null,
   };
 }
 
-function fromDbTask(r: any): Task {
+type TaskRow = {
+  id: string;
+  task_id: string;
+  project_id: string | null;
+  title: string;
+  description: string | null;
+  developer: string | null;
+  field: string | null;
+  end_user: string | null;
+  module: string | null;
+  status: string | null;
+  qa_status: string | null;
+  commit: string | null;
+  remarks: string | null;
+  due_date: string | null;
+  start_date: string | null;
+  completed_at: string | null;
+  priority: string | null;
+  branch_name: string | null;
+  created_by: string | null;
+  timeline_item_id: string | null;
+};
+
+function fromDbTask(r: TaskRow): Task {
   return {
     id: r.id,
     taskId: r.task_id,
-    projectId: r.project_id,
+    projectId: r.project_id || "",
     title: r.title,
     description: r.description || "",
     developer: r.developer || "",
     field: r.field || "",
     endUser: r.end_user || "",
     module: r.module || "",
-    status: r.status || "pending",
-    qaStatus: r.qa_status || "waiting",
+    status: (r.status || "pending") as Task["status"],
+    qaStatus: (r.qa_status || "waiting") as Task["qaStatus"],
     commit: r.commit || "",
     remarks: r.remarks || "",
     dueDate: r.due_date || "",
     startDate: r.start_date || "",
     completedAt: r.completed_at || "",
-    priority: r.priority || "medium",
+    priority: (r.priority || "medium") as Task["priority"],
     branch: r.branch_name || "",
     createdBy: r.created_by || "",
+    timelineItemId: r.timeline_item_id || "",
   };
 }
 
-function fromDbProject(r: any): Project {
+type ProjectRow = {
+  id: string;
+  name: string;
+  prefix: string;
+  created_at: string;
+  client_name: string | null;
+  end_users: string[] | null;
+  modules: string[] | null;
+  archived_at: string | null;
+};
+
+function fromDbProject(r: ProjectRow): Project {
   return {
     id: r.id,
     name: r.name,
@@ -247,8 +284,29 @@ function getInitialProject(projects: Project[]): Project | null {
 
 const ProjectContext = createContext<ProjectContextType | null>(null);
 
+let realtimeSeq = 0;
+
 function db() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return supabase as any;
+}
+
+async function notifyDeveloper(devName: string, message: string, taskId: string) {
+  if (!devName) return;
+  try {
+    const { data } = await db()
+      .from("profiles")
+      .select("id")
+      .ilike("display_name", devName)
+      .maybeSingle();
+    if (data?.id) {
+      await db()
+        .from("notifications")
+        .insert({ user_id: data.id, task_id: taskId || null, message });
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
@@ -316,7 +374,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
             db()
               .from("settings")
               .upsert({ key: "developers", value: cleaned })
-              .catch(() => {});
+              .then(
+                () => {},
+                () => {},
+              );
           }
         }
         if (settingsQas.length) {
@@ -326,7 +387,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
             db()
               .from("settings")
               .upsert({ key: "qa_users", value: cleaned })
-              .catch(() => {});
+              .then(
+                () => {},
+                () => {},
+              );
           }
         }
       } catch (e) {
@@ -341,17 +405,19 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   // Live-update tasks from realtime changes so edits by other users show up immediately
   useEffect(() => {
     const channel = supabase
-      .channel("tasks-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, (payload: any) => {
+      .channel(`tasks-changes:${++realtimeSeq}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, (payload) => {
         if (payload.eventType === "DELETE") {
           setAllTasks((prev) => prev.filter((t) => t.id !== payload.old?.id));
         } else if (payload.eventType === "INSERT") {
           setAllTasks((prev) =>
-            prev.some((t) => t.id === payload.new?.id) ? prev : [...prev, fromDbTask(payload.new)],
+            prev.some((t) => t.id === payload.new?.id)
+              ? prev
+              : [...prev, fromDbTask(payload.new as TaskRow)],
           );
         } else if (payload.eventType === "UPDATE") {
           setAllTasks((prev) =>
-            prev.map((t) => (t.id === payload.new?.id ? fromDbTask(payload.new) : t)),
+            prev.map((t) => (t.id === payload.new?.id ? fromDbTask(payload.new as TaskRow) : t)),
           );
         }
       })
@@ -364,28 +430,26 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   // Live-update projects from realtime changes (adds/edits/archives/deletes by other users)
   useEffect(() => {
     const channel = supabase
-      .channel("projects-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "projects" },
-        (payload: any) => {
-          if (payload.eventType === "DELETE") {
-            const id = payload.old?.id;
-            setAllProjects((prev) => prev.filter((p) => p.id !== id));
-            setAllTasks((prev) => prev.filter((t) => t.projectId !== id));
-          } else if (payload.eventType === "INSERT") {
-            setAllProjects((prev) =>
-              prev.some((p) => p.id === payload.new?.id)
-                ? prev
-                : [...prev, fromDbProject(payload.new)],
-            );
-          } else if (payload.eventType === "UPDATE") {
-            setAllProjects((prev) =>
-              prev.map((p) => (p.id === payload.new?.id ? fromDbProject(payload.new) : p)),
-            );
-          }
-        },
-      )
+      .channel(`projects-changes:${++realtimeSeq}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "projects" }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          const id = payload.old?.id;
+          setAllProjects((prev) => prev.filter((p) => p.id !== id));
+          setAllTasks((prev) => prev.filter((t) => t.projectId !== id));
+        } else if (payload.eventType === "INSERT") {
+          setAllProjects((prev) =>
+            prev.some((p) => p.id === payload.new?.id)
+              ? prev
+              : [...prev, fromDbProject(payload.new as ProjectRow)],
+          );
+        } else if (payload.eventType === "UPDATE") {
+          setAllProjects((prev) =>
+            prev.map((p) =>
+              p.id === payload.new?.id ? fromDbProject(payload.new as ProjectRow) : p,
+            ),
+          );
+        }
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -582,6 +646,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       branch: t.branch || branch,
       endUser: t.endUser || "",
       module: t.module || "",
+      timelineItemId: t.timelineItemId || "",
     };
     setAllTasks((prev) => [...prev, task]);
     db()
@@ -589,9 +654,13 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       .insert(toDbTask(task))
       .then(() => notify("success", "Task created"))
       .catch(() => notify("error", "Failed to create task"));
+    if (task.developer) {
+      notifyDeveloper(task.developer, `New task ${task.taskId}: ${task.title}`, task.id);
+    }
   }
 
   function updateTask(id: string, updates: Partial<Task>) {
+    const prevTask = allTasks.find((t) => t.id === id);
     setAllTasks((prev) =>
       prev.map((t) => {
         if (t.id !== id) return t;
@@ -602,7 +671,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         return updated;
       }),
     );
-    const dbUpdates: Record<string, any> = {};
+    if (updates.developer && prevTask && updates.developer !== prevTask.developer) {
+      const title = updates.title ?? prevTask.title;
+      notifyDeveloper(updates.developer, `Assigned to you ${prevTask.taskId}: ${title}`, id);
+    }
+    const dbUpdates: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(updates)) {
       if (k === "taskId") dbUpdates.task_id = v;
       else if (k === "projectId") dbUpdates.project_id = v;
@@ -614,6 +687,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       else if (k === "endUser") dbUpdates.end_user = v;
       else if (k === "module") dbUpdates.module = v;
       else if (k === "createdBy") dbUpdates.created_by = v;
+      else if (k === "timelineItemId") dbUpdates.timeline_item_id = v;
       else dbUpdates[k] = v;
     }
     db()

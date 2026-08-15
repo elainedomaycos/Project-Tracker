@@ -8,7 +8,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   LayoutDashboard,
   ListChecks,
@@ -26,13 +26,18 @@ import {
   Trophy,
   Archive,
   Settings2,
+  Menu,
+  Plus,
+  GanttChart,
 } from "lucide-react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ProjectProvider, useProject, type AppView } from "@/lib/project-context";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { TimelineProvider } from "@/lib/timeline-context";
 import { Toaster } from "@/components/ui/sonner";
+import { NotificationCenter } from "@/components/notification-center";
 
 function NotFoundComponent() {
   return (
@@ -150,6 +155,12 @@ const NAV_ITEMS: readonly NavItem[] = [
     icon: ExternalLink,
     roles: ["super_admin", "developer", "qa"],
   },
+  {
+    to: "/timeline",
+    label: "Project Timeline",
+    icon: GanttChart,
+    roles: ["super_admin", "developer", "qa"],
+  },
 ];
 
 const HACKATHON_NAV: readonly NavItem[] = [
@@ -176,9 +187,11 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ProjectProvider>
-          <AuthGate>
-            {isAuthPage ? <Outlet /> : <AppShell pathname={pathname} queryClient={queryClient} />}
-          </AuthGate>
+          <TimelineProvider>
+            <AuthGate>
+              {isAuthPage ? <Outlet /> : <AppShell pathname={pathname} queryClient={queryClient} />}
+            </AuthGate>
+          </TimelineProvider>
         </ProjectProvider>
       </AuthProvider>
       <Toaster position="top-right" richColors closeButton />
@@ -192,6 +205,15 @@ function AuthGate({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isAuthPage = pathname === "/auth";
 
+  useEffect(() => {
+    if (loading) return;
+    if (!user && !isAuthPage) {
+      router.navigate({ to: "/auth" });
+    } else if (user && isAuthPage && !recoveryMode) {
+      router.navigate({ to: "/" });
+    }
+  }, [user, loading, recoveryMode, isAuthPage, router]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -200,30 +222,45 @@ function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!user && !isAuthPage) {
-    router.navigate({ to: "/auth" });
-    return null;
-  }
-
-  if (user && isAuthPage && !recoveryMode) {
-    router.navigate({ to: "/" });
-    return null;
-  }
+  if (!user && !isAuthPage) return null;
+  if (user && isAuthPage && !recoveryMode) return null;
 
   return <>{children}</>;
 }
 
 function AppShell({ pathname, queryClient }: { pathname: string; queryClient: QueryClient }) {
-  const { profile, signOut, isSuperAdmin } = useAuth();
+  const { profile, signOut } = useAuth();
   const role = profile?.role ?? "developer";
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   function canSee(item: NavItem) {
     return item.roles.includes(role);
   }
 
+  const closeNav = () => setMobileNavOpen(false);
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
-      <nav className="w-56 shrink-0 flex flex-col border-r border-border bg-sidebar">
+      {/* Mobile top bar */}
+      <div className="fixed top-0 inset-x-0 z-40 lg:hidden flex items-center justify-between h-12 px-3 border-b border-border bg-sidebar">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setMobileNavOpen(true)}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-2 transition-colors"
+            aria-label="Open menu"
+          >
+            <Menu className="size-4" />
+          </button>
+          <div className="size-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-bold italic text-[11px]">
+            TT
+          </div>
+          <span className="text-sm font-bold tracking-tight">Task Tracker</span>
+        </div>
+        <NotificationCenter />
+      </div>
+
+      {/* Desktop sidebar */}
+      <nav className="hidden lg:flex w-56 shrink-0 flex-col border-r border-border bg-sidebar">
         <div className="h-14 flex items-center gap-3 px-5 border-b border-border">
           <div className="size-7 rounded-md bg-primary text-primary-foreground grid place-items-center font-bold italic text-sm">
             TT
@@ -234,119 +271,280 @@ function AppShell({ pathname, queryClient }: { pathname: string; queryClient: Qu
               v0.2 · console
             </div>
           </div>
+          <div className="ml-auto">
+            <NotificationCenter />
+          </div>
         </div>
-
-        <div className="px-3 pt-3 pb-1">
-          <ProjectSelector />
-        </div>
-
-        <div className="flex-1 overflow-y-auto py-4 px-2 space-y-1 no-scrollbar">
-          {NAV_ITEMS.filter(canSee).map((item) => {
-            const active = pathname === item.to;
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={[
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                  active
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
-                ].join(" ")}
-              >
-                <Icon className="size-4 shrink-0" strokeWidth={1.75} />
-                <span className="truncate">{item.label}</span>
-              </Link>
-            );
-          })}
-
-          {EXTRA_NAV.filter(canSee).length > 0 && (
-            <div className="pt-4 mt-4 border-t border-border">
-              <div className="px-3 pb-2 text-[9px] font-mono uppercase text-muted-foreground tracking-wider">
-                Advanced
-              </div>
-              {EXTRA_NAV.filter(canSee).map((item) => {
-                const active = pathname === item.to;
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    className={[
-                      "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                      active
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
-                    ].join(" ")}
-                  >
-                    <Icon className="size-4 shrink-0" strokeWidth={1.75} />
-                    <span className="truncate">{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-
-          {HACKATHON_NAV.filter(canSee).length > 0 && (
-            <div className="pt-4 mt-4 border-t border-border">
-              <div className="px-3 pb-2 text-[9px] font-mono uppercase text-muted-foreground tracking-wider">
-                Tracker
-              </div>
-              {HACKATHON_NAV.filter(canSee).map((item) => {
-                const active = pathname === item.to;
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    className={[
-                      "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                      active
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
-                    ].join(" ")}
-                  >
-                    <Icon className="size-4 shrink-0" strokeWidth={1.75} />
-                    <span className="truncate">{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="p-3 border-t border-border space-y-2">
-          {profile && (
-            <Link
-              to="/profile"
-              className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors"
-            >
-              <div className="size-7 rounded-full bg-surface-2 border border-border grid place-items-center text-[9px] font-bold shrink-0">
-                {profile.name?.slice(0, 2).toUpperCase() ||
-                  profile.email?.slice(0, 2).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-medium truncate">{profile.name || "User"}</div>
-                <div className="text-[9px] font-mono text-muted-foreground capitalize truncate">
-                  {(profile.role || "developer").replace("_", " ")}
-                </div>
-              </div>
-            </Link>
-          )}
-          <button
-            onClick={signOut}
-            className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
-          >
-            <LogOut className="size-3.5" />
-            Sign Out
-          </button>
-        </div>
+        <SidebarContent
+          pathname={pathname}
+          canSee={canSee}
+          profile={profile}
+          signOut={signOut}
+          onNavigate={closeNav}
+        />
       </nav>
 
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      {/* Mobile drawer */}
+      {mobileNavOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-black/40" onClick={closeNav} />
+          <nav className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-sidebar border-r border-border flex flex-col shadow-xl">
+            <div className="h-12 flex items-center justify-between px-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <div className="size-6 rounded-md bg-primary text-primary-foreground grid place-items-center font-bold italic text-[11px]">
+                  TT
+                </div>
+                <span className="text-sm font-bold tracking-tight">Task Tracker</span>
+              </div>
+              <button
+                onClick={closeNav}
+                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-2 transition-colors"
+                aria-label="Close menu"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <SidebarContent
+              pathname={pathname}
+              canSee={canSee}
+              profile={profile}
+              signOut={signOut}
+              onNavigate={closeNav}
+            />
+          </nav>
+        </div>
+      )}
+
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden pt-12 lg:pt-0">
         <Outlet />
       </main>
+    </div>
+  );
+}
+
+function SidebarContent({
+  pathname,
+  canSee,
+  profile,
+  signOut,
+  onNavigate,
+}: {
+  pathname: string;
+  canSee: (item: NavItem) => boolean;
+  profile: ReturnType<typeof useAuth>["profile"];
+  signOut: () => void;
+  onNavigate: () => void;
+}) {
+  return (
+    <>
+      <div className="px-3 pt-3 pb-1">
+        <ProjectSelector />
+      </div>
+
+      <div className="flex-1 overflow-y-auto py-4 px-2 space-y-1 no-scrollbar">
+        {NAV_ITEMS.filter(canSee).map((item) => {
+          const active = pathname === item.to;
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              onClick={onNavigate}
+              className={[
+                "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                active
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
+              ].join(" ")}
+            >
+              <Icon className="size-4 shrink-0" strokeWidth={1.75} />
+              <span className="truncate">{item.label}</span>
+            </Link>
+          );
+        })}
+
+        {EXTRA_NAV.filter(canSee).length > 0 && (
+          <div className="pt-4 mt-4 border-t border-border">
+            <div className="px-3 pb-2 text-[9px] font-mono uppercase text-muted-foreground tracking-wider">
+              Advanced
+            </div>
+            {EXTRA_NAV.filter(canSee).map((item) => {
+              const active = pathname === item.to;
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={onNavigate}
+                  className={[
+                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                    active
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
+                  ].join(" ")}
+                >
+                  <Icon className="size-4 shrink-0" strokeWidth={1.75} />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+
+        {HACKATHON_NAV.filter(canSee).length > 0 && (
+          <div className="pt-4 mt-4 border-t border-border">
+            <div className="px-3 pb-2 text-[9px] font-mono uppercase text-muted-foreground tracking-wider">
+              Tracker
+            </div>
+            {HACKATHON_NAV.filter(canSee).map((item) => {
+              const active = pathname === item.to;
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={onNavigate}
+                  className={[
+                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                    active
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
+                  ].join(" ")}
+                >
+                  <Icon className="size-4 shrink-0" strokeWidth={1.75} />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="p-3 border-t border-border space-y-2">
+        {profile && (
+          <Link
+            to="/profile"
+            onClick={onNavigate}
+            className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors"
+          >
+            <div className="size-7 rounded-full bg-surface-2 border border-border grid place-items-center text-[9px] font-bold shrink-0">
+              {profile.name?.slice(0, 2).toUpperCase() || profile.email?.slice(0, 2).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium truncate">{profile.name || "User"}</div>
+              <div className="text-[9px] font-mono text-muted-foreground capitalize truncate">
+                {(profile.role || "developer").replace("_", " ")}
+              </div>
+            </div>
+          </Link>
+        )}
+        <button
+          onClick={signOut}
+          className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+        >
+          <LogOut className="size-3.5" />
+          Sign Out
+        </button>
+      </div>
+    </>
+  );
+}
+
+function TagDropdown({
+  items,
+  onChange,
+  placeholder,
+}: {
+  items: string[];
+  onChange: (items: string[]) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  function add() {
+    const parsed = draft
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!parsed.length) return;
+    onChange([...items, ...parsed].filter((v, i, a) => a.indexOf(v) === i));
+    setDraft("");
+  }
+
+  return (
+    <div className="mt-1" ref={rootRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+      >
+        <span className={items.length ? "truncate" : "text-muted-foreground"}>
+          {items.length ? items.join(", ") : "None"}
+        </span>
+        <ChevronDown
+          className={`size-3 text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <div className="mt-1 bg-popover border border-border rounded-md shadow-lg overflow-hidden">
+          {items.length > 0 ? (
+            <div className="max-h-40 overflow-y-auto">
+              {items.map((item) => (
+                <div
+                  key={item}
+                  className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border last:border-0"
+                >
+                  <span className="text-xs truncate">{item}</span>
+                  <button
+                    onClick={() => onChange(items.filter((i) => i !== item))}
+                    className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                    aria-label={`Remove ${item}`}
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-3">No items yet</p>
+          )}
+          <div className="flex gap-1 p-2 border-t border-border">
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  add();
+                }
+              }}
+              placeholder={placeholder}
+              className="flex-1 px-2 py-1.5 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+            />
+            <button
+              onClick={add}
+              className="shrink-0 px-2.5 rounded-md bg-primary text-primary-foreground grid place-items-center hover:brightness-110"
+              aria-label="Add item"
+            >
+              <Plus className="size-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -356,16 +554,25 @@ function ProjectSelector() {
     useProject();
   const { isSuperAdmin } = useAuth();
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ name: "", clientName: "", endUsers: "", modules: "" });
+  const [form, setForm] = useState<{
+    name: string;
+    clientName: string;
+    endUsers: string[];
+    modules: string[];
+  }>({ name: "", clientName: "", endUsers: [], modules: [] });
   const [showManage, setShowManage] = useState(false);
-  const [manageForm, setManageForm] = useState({ clientName: "", endUsers: "", modules: "" });
+  const [manageForm, setManageForm] = useState<{
+    clientName: string;
+    endUsers: string[];
+    modules: string[];
+  }>({ clientName: "", endUsers: [], modules: [] });
 
   function openManage() {
     if (!currentProject) return;
     setManageForm({
       clientName: currentProject.clientName || "",
-      endUsers: (currentProject.endUsers ?? []).join(", "),
-      modules: (currentProject.modules ?? []).join(", "),
+      endUsers: [...(currentProject.endUsers ?? [])],
+      modules: [...(currentProject.modules ?? [])],
     });
     setShowManage(true);
   }
@@ -374,14 +581,8 @@ function ProjectSelector() {
     if (!currentProject) return;
     updateProject(currentProject.id, {
       clientName: manageForm.clientName.trim(),
-      endUsers: manageForm.endUsers
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
-      modules: manageForm.modules
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
+      endUsers: manageForm.endUsers,
+      modules: manageForm.modules,
     });
     setShowManage(false);
   }
@@ -391,16 +592,10 @@ function ProjectSelector() {
     addProject({
       name: form.name.trim(),
       clientName: form.clientName.trim(),
-      endUsers: form.endUsers
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
-      modules: form.modules
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
+      endUsers: form.endUsers,
+      modules: form.modules,
     });
-    setForm({ name: "", clientName: "", endUsers: "", modules: "" });
+    setForm({ name: "", clientName: "", endUsers: [], modules: [] });
     setShowModal(false);
   }
 
@@ -499,22 +694,20 @@ function ProjectSelector() {
                 <label className="text-[10px] font-mono uppercase text-muted-foreground">
                   End Users
                 </label>
-                <input
-                  value={form.endUsers}
-                  onChange={(e) => setForm((p) => ({ ...p, endUsers: e.target.value }))}
-                  placeholder="Comma-separated (e.g. Admin, Manager, Staff)"
-                  className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                <TagDropdown
+                  items={form.endUsers}
+                  onChange={(items) => setForm((p) => ({ ...p, endUsers: items }))}
+                  placeholder="Add an end user..."
                 />
               </div>
               <div>
                 <label className="text-[10px] font-mono uppercase text-muted-foreground">
                   Modules
                 </label>
-                <input
-                  value={form.modules}
-                  onChange={(e) => setForm((p) => ({ ...p, modules: e.target.value }))}
-                  placeholder="Comma-separated (e.g. Dashboard, Reports, Auth)"
-                  className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                <TagDropdown
+                  items={form.modules}
+                  onChange={(items) => setForm((p) => ({ ...p, modules: items }))}
+                  placeholder="Add a module..."
                 />
               </div>
             </div>
@@ -574,11 +767,10 @@ function ProjectSelector() {
                 <label className="text-[10px] font-mono uppercase text-muted-foreground">
                   End Users
                 </label>
-                <input
-                  value={manageForm.endUsers}
-                  onChange={(e) => setManageForm((p) => ({ ...p, endUsers: e.target.value }))}
-                  placeholder="Comma-separated (e.g. Admin, Manager, Staff)"
-                  className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                <TagDropdown
+                  items={manageForm.endUsers}
+                  onChange={(items) => setManageForm((p) => ({ ...p, endUsers: items }))}
+                  placeholder="Add an end user..."
                 />
                 <p className="text-[10px] text-muted-foreground mt-1">
                   These are the users who use the system, used when assigning tasks and credentials.
@@ -588,11 +780,10 @@ function ProjectSelector() {
                 <label className="text-[10px] font-mono uppercase text-muted-foreground">
                   Modules
                 </label>
-                <input
-                  value={manageForm.modules}
-                  onChange={(e) => setManageForm((p) => ({ ...p, modules: e.target.value }))}
-                  placeholder="Comma-separated (e.g. Dashboard, Reports, Auth)"
-                  className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                <TagDropdown
+                  items={manageForm.modules}
+                  onChange={(items) => setManageForm((p) => ({ ...p, modules: items }))}
+                  placeholder="Add a module..."
                 />
                 <p className="text-[10px] text-muted-foreground mt-1">
                   Used in the module dropdown when creating tasks.

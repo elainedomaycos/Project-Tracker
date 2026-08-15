@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/console";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useProject, type Task, type TaskStatus, type QaStatus } from "@/lib/project-context";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,6 +62,7 @@ function TasksPage() {
   const {
     projects,
     currentProject,
+    tasks: allTasks,
     getProjectTasks,
     getAnalytics,
     addTask,
@@ -75,6 +76,14 @@ function TasksPage() {
     isSuperAdmin || (isDeveloper && task.developer === profile?.name);
   const [showNewModal, setShowNewModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [remarksDraft, setRemarksDraft] = useState("");
+  const [branchDraft, setBranchDraft] = useState("");
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSave = useRef<{ id: string; field: "remarks" | "branch"; value: string } | null>(
+    null,
+  );
+  const [rowBranchDrafts, setRowBranchDrafts] = useState<Record<string, string>>({});
+  const rowBranchTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<TaskStatus | "all">("all");
   const [filterDev, setFilterDev] = useState<string>("all");
@@ -83,7 +92,7 @@ function TasksPage() {
   const [sortBy, setSortBy] = useState<"id" | "priority" | "status" | "dueDate" | "developer">(
     "id",
   );
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [superAdmins, setSuperAdmins] = useState<string[]>([]);
   const [form, setForm] = useState({
@@ -99,17 +108,80 @@ function TasksPage() {
   });
 
   useEffect(() => {
-    (supabase as any)
-      .from("profiles")
-      .select("display_name")
-      .eq("role", "super_admin")
-      .then(({ data }: any) => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("role", "super_admin");
         if (data?.length) {
-          setSuperAdmins(data.map((p: any) => p.display_name || "").filter(Boolean));
+          setSuperAdmins(data.map((p) => p.display_name || "").filter(Boolean));
         }
-      })
-      .catch(() => {});
+      } catch {
+        // ignore
+      }
+    })();
   }, []);
+
+  useEffect(() => {
+    setRemarksDraft(selectedTask?.remarks ?? "");
+    setBranchDraft(selectedTask?.branch ?? "");
+  }, [selectedTask?.id, selectedTask?.remarks, selectedTask?.branch]);
+
+  useEffect(() => {
+    const timers = rowBranchTimers.current;
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
+
+  function scheduleRowBranch(id: string, value: string) {
+    setRowBranchDrafts((prev) => ({ ...prev, [id]: value }));
+    const timer = rowBranchTimers.current.get(id);
+    if (timer) clearTimeout(timer);
+    rowBranchTimers.current.set(
+      id,
+      setTimeout(() => {
+        rowBranchTimers.current.delete(id);
+        updateTask(id, { branch: value });
+      }, 400),
+    );
+  }
+
+  function commitRowBranch(id: string) {
+    const draft = rowBranchDrafts[id];
+    const timer = rowBranchTimers.current.get(id);
+    if (timer) clearTimeout(timer);
+    rowBranchTimers.current.delete(id);
+    setRowBranchDrafts((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    if (draft !== undefined) updateTask(id, { branch: draft });
+  }
+
+  function scheduleSave(id: string, field: "remarks" | "branch", value: string) {
+    pendingSave.current = { id, field, value };
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      if (!pendingSave.current) return;
+      const { id, field, value } = pendingSave.current;
+      pendingSave.current = null;
+      updateTask(id, field === "remarks" ? { remarks: value } : { branch: value });
+    }, 400);
+  }
+
+  function commitDraft() {
+    if (!selectedTask || !pendingSave.current) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = null;
+    const { id, field, value } = pendingSave.current;
+    pendingSave.current = null;
+    updateTask(id, field === "remarks" ? { remarks: value } : { branch: value });
+  }
 
   function creatorOptions(current: string): string[] {
     const names = new Set(superAdmins);
@@ -119,7 +191,7 @@ function TasksPage() {
 
   const pid = currentProject?.id ?? null;
   const currentProj = pid ? projects.find((p) => p.id === pid) : null;
-  const tasks = pid ? getProjectTasks(pid) : useProject().tasks;
+  const tasks = pid ? getProjectTasks(pid) : allTasks;
   const analytics = pid
     ? getAnalytics(pid)
     : {
@@ -349,7 +421,7 @@ function TasksPage() {
           </span>
         </div>
         {/* Analytics Bar */}
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <div className="p-3 bg-card border border-border rounded-md text-center">
             <div className="text-lg font-bold">{analytics.total}</div>
             <div className="text-[9px] font-mono text-muted-foreground uppercase">Total</div>
@@ -556,8 +628,9 @@ function TasksPage() {
                     <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       <GitBranch className="size-3 text-muted-foreground shrink-0" />
                       <input
-                        value={t.branch}
-                        onChange={(e) => updateTask(t.id, { branch: e.target.value })}
+                        value={rowBranchDrafts[t.id] ?? t.branch}
+                        onChange={(e) => scheduleRowBranch(t.id, e.target.value)}
+                        onBlur={() => commitRowBranch(t.id)}
                         className="w-40 px-1 py-0.5 bg-transparent border border-transparent hover:border-border focus:border-primary rounded text-[10px] font-mono text-muted-foreground focus:outline-none focus:bg-surface-2"
                         title="Edit branch name"
                         readOnly={!canEditTask(t)}
@@ -807,8 +880,12 @@ function TasksPage() {
                 <div className="flex items-center gap-2">
                   <GitBranch className="size-3.5 text-muted-foreground" />
                   <input
-                    value={selectedTask.branch}
-                    onChange={(e) => updateTask(selectedTask.id, { branch: e.target.value })}
+                    value={branchDraft}
+                    onChange={(e) => {
+                      setBranchDraft(e.target.value);
+                      scheduleSave(selectedTask.id, "branch", e.target.value);
+                    }}
+                    onBlur={commitDraft}
                     className="w-56 px-2 py-1 bg-surface-2 border border-border rounded text-[10px] font-mono text-muted-foreground focus:outline-none focus:border-primary"
                     placeholder="feature/..."
                     readOnly={!canEditTask(selectedTask)}
@@ -1030,11 +1107,15 @@ function TasksPage() {
                   Remarks
                 </div>
                 <input
-                  value={selectedTask.remarks}
-                  onChange={(e) => updateTask(selectedTask.id, { remarks: e.target.value })}
+                  value={remarksDraft}
+                  onChange={(e) => {
+                    setRemarksDraft(e.target.value);
+                    scheduleSave(selectedTask.id, "remarks", e.target.value);
+                  }}
+                  onBlur={commitDraft}
                   placeholder="Add a remark..."
                   className="w-full px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
-                  readOnly={isDeveloper}
+                  readOnly={!canEditTask(selectedTask)}
                 />
               </div>
             </div>

@@ -114,7 +114,14 @@ const STATUS_CONFIG: Record<
 };
 
 function db() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return supabase as any;
+}
+
+function errorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  return "";
 }
 
 const hackathonSchema = z.object({
@@ -168,7 +175,14 @@ const EMPTY_FORM: HackathonForm = {
   announcement_url: "",
 };
 
+type HackathonRow = Omit<HackathonData, "projects">;
+type ProjectLink = { id: string; project_id: string; link_type: LinkType; url: string };
+type ProfileNameRow = { id: string; display_name: string };
+type HackProject = HackathonData["projects"][number] & { owner_id: string };
+
 const DEFAULT_DELIVERABLES = ["Register for event", "Prepare team/project", "Submit project"];
+
+let realtimeSeq = 0;
 
 function eventStatus(
   hack: HackathonData,
@@ -212,18 +226,20 @@ function HackathonsPage() {
 
       if (!hacks?.length) return [];
 
-      const hackIds = hacks.map((h: any) => h.id);
+      const hackIds = hacks.map((h: HackathonRow) => h.id);
 
       const { data: hackProjects } = await db()
         .from("hackathon_projects")
         .select("hackathon_id, project_id")
         .in("hackathon_id", hackIds);
 
-      const projectIds = [...new Set((hackProjects ?? []).map((hp: any) => hp.project_id))];
+      const projectIds = [
+        ...new Set((hackProjects ?? []).map((hp: { project_id: string }) => hp.project_id)),
+      ];
 
-      let projectsData: any[] = [];
-      let linksData: any[] = [];
-      let profilesData: any[] = [];
+      let projectsData: HackProject[] = [];
+      let linksData: ProjectLink[] = [];
+      let profilesData: ProfileNameRow[] = [];
 
       if (projectIds.length > 0) {
         const [projRes, linkRes, projMembers] = await Promise.all([
@@ -234,7 +250,9 @@ function HackathonsPage() {
         projectsData = projRes.data ?? [];
         linksData = linkRes.data ?? [];
 
-        const memberIds = [...new Set((projMembers.data ?? []).map((pm: any) => pm.member_id))];
+        const memberIds = [
+          ...new Set((projMembers.data ?? []).map((pm: { member_id: string }) => pm.member_id)),
+        ];
         if (memberIds.length > 0) {
           const { data: profiles } = await db()
             .from("profiles")
@@ -244,16 +262,16 @@ function HackathonsPage() {
         }
       }
 
-      const linksByProject = new Map<string, any[]>();
+      const linksByProject = new Map<string, ProjectLink[]>();
       for (const link of linksData) {
         const list = linksByProject.get(link.project_id) ?? [];
         list.push(link);
         linksByProject.set(link.project_id, list);
       }
 
-      const profileMap = new Map(profilesData.map((p: any) => [p.id, p.display_name]));
+      const profileMap = new Map(profilesData.map((p: ProfileNameRow) => [p.id, p.display_name]));
 
-      const projectsByHack = new Map<string, any[]>();
+      const projectsByHack = new Map<string, HackProject[]>();
       for (const hp of hackProjects ?? []) {
         const list = projectsByHack.get(hp.hackathon_id) ?? [];
         const proj = projectsData.find((p) => p.id === hp.project_id);
@@ -267,7 +285,7 @@ function HackathonsPage() {
         projectsByHack.set(hp.hackathon_id, list);
       }
 
-      return hacks.map((h: any) => ({
+      return hacks.map((h: HackathonRow) => ({
         ...h,
         projects: projectsByHack.get(h.id) ?? [],
       }));
@@ -284,7 +302,7 @@ function HackathonsPage() {
           .from("event_registrations")
           .select("event_id")
           .eq("user_id", user.id);
-        return new Set((data ?? []).map((r: any) => r.event_id));
+        return new Set((data ?? []).map((r: { event_id: string }) => r.event_id));
       } catch {
         return new Set();
       }
@@ -362,10 +380,13 @@ function HackathonsPage() {
     onMutate: async ({ eventId, items, state }) => {
       await queryClient.cancelQueries({ queryKey: ["event-deliverables"] });
       const previous = queryClient.getQueryData(["event-deliverables"]);
-      queryClient.setQueryData(["event-deliverables"], (old: any) => ({
-        ...(old ?? {}),
-        [eventId]: { items, state },
-      }));
+      queryClient.setQueryData(
+        ["event-deliverables"],
+        (old: Record<string, { items: string[]; state: Record<string, boolean> }> | undefined) => ({
+          ...(old ?? {}),
+          [eventId]: { items, state },
+        }),
+      );
       return { previous };
     },
     onError: (err, variables, context) => {
@@ -379,7 +400,7 @@ function HackathonsPage() {
 
   useEffect(() => {
     const channel = supabase
-      .channel("event-deliverables-changes")
+      .channel(`event-deliverables-changes:${++realtimeSeq}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "event_deliverables" }, () => {
         queryClient.invalidateQueries({ queryKey: ["event-deliverables"] });
       })
@@ -392,7 +413,7 @@ function HackathonsPage() {
   // Live-update events when other users create/edit/delete events or link projects
   useEffect(() => {
     const channel = supabase
-      .channel("events-changes")
+      .channel(`events-changes:${++realtimeSeq}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "hackathons" }, () => {
         queryClient.invalidateQueries({ queryKey: ["hackathons"] });
       })
@@ -528,8 +549,8 @@ function HackathonsPage() {
       form.setValue("registration_url", parsed.registration_url);
       setFormMode("manual");
       toast.success("Event info parsed — review and save");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to parse event info");
+    } catch (err: unknown) {
+      toast.error(errorMessage(err) || "Failed to parse event info");
     } finally {
       setAiLoading(false);
     }
@@ -1105,20 +1126,24 @@ function LinkProjectModal({
 
       if (!memberProjects?.length) return [];
 
-      const ownerIds = [...new Set(memberProjects.map((p: any) => p.owner_id))];
+      const ownerIds = [...new Set(memberProjects.map((p: { owner_id: string }) => p.owner_id))];
       const { data: profiles } = await db()
         .from("profiles")
         .select("id, display_name")
         .in("id", ownerIds);
 
-      const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p.display_name]));
+      const profileMap = new Map(
+        (profiles ?? []).map((p: ProfileNameRow) => [p.id, p.display_name]),
+      );
 
-      return memberProjects.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        short_description: p.short_description,
-        owner_name: profileMap.get(p.owner_id) ?? "Unknown",
-      }));
+      return memberProjects.map(
+        (p: { id: string; name: string; short_description: string | null; owner_id: string }) => ({
+          id: p.id,
+          name: p.name,
+          short_description: p.short_description,
+          owner_name: profileMap.get(p.owner_id) ?? "Unknown",
+        }),
+      );
     },
   });
 
@@ -1129,7 +1154,7 @@ function LinkProjectModal({
         .from("hackathon_projects")
         .select("project_id")
         .eq("hackathon_id", hackathonId);
-      return new Set((data ?? []).map((r: any) => r.project_id));
+      return new Set((data ?? []).map((r: { project_id: string }) => r.project_id));
     },
   });
 

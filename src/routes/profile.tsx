@@ -62,6 +62,7 @@ const PROJECT_STATUSES = [
 ];
 
 function db() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return supabase as any;
 }
 
@@ -154,20 +155,20 @@ function ProfilePage() {
 
       if (!memberProjects?.length) return [];
 
-      const ids = memberProjects.map((p: any) => p.id);
+      const ids = memberProjects.map((p: { id: string }) => p.id);
       const [projRes, linkRes] = await Promise.all([
         db().from("member_projects").select("*").in("id", ids),
         db().from("project_links").select("*").in("project_id", ids),
       ]);
 
-      const linksByProject = new Map<string, any[]>();
+      const linksByProject = new Map<string, { link_type: LinkType; url: string }[]>();
       for (const link of linkRes.data ?? []) {
         const list = linksByProject.get(link.project_id) ?? [];
         list.push(link);
         linksByProject.set(link.project_id, list);
       }
 
-      return (projRes.data ?? []).map((p: any) => ({
+      return (projRes.data ?? []).map((p: Omit<ProjectData, "links">) => ({
         ...p,
         links: linksByProject.get(p.id) ?? [],
       }));
@@ -711,7 +712,7 @@ function ProfilePage() {
                                   status: project.status ?? "completed",
                                 });
                                 setProjectLinks(
-                                  project.links.map((l: any) => ({
+                                  project.links.map((l) => ({
                                     type: l.link_type,
                                     url: l.url,
                                   })),

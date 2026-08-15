@@ -18,6 +18,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useProject } from "@/lib/project-context";
 
+let realtimeSeq = 0;
+
 export const Route = createFileRoute("/credentials")({
   head: () => ({
     meta: [
@@ -54,11 +56,25 @@ const TYPE_META: Record<CredType, { label: string; icon: typeof Key }> = {
   other: { label: "Other", icon: Globe },
 };
 
+type CredRow = {
+  id: string;
+  project_id: string | null;
+  type: CredType;
+  service: string;
+  username: string | null;
+  key: string;
+  value: string;
+  url: string | null;
+  end_user: string | null;
+  description: string | null;
+  created_at: string;
+};
+
 function generateId() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-function fromDbCred(r: any): Credential {
+function fromDbCred(r: CredRow): Credential {
   return {
     id: r.id,
     projectId: r.project_id ?? null,
@@ -75,6 +91,7 @@ function fromDbCred(r: any): Credential {
 }
 
 async function fetchCreds(): Promise<Credential[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (supabase as any)
     .from("credentials")
     .select("*")
@@ -168,7 +185,7 @@ function Credentials() {
   // Live-sync credentials so adds/removes by other users appear instantly
   useEffect(() => {
     const channel = supabase
-      .channel("credentials-changes")
+      .channel(`credentials-changes:${++realtimeSeq}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "credentials" }, () => {
         fetchCreds()
           .then(setCreds)
@@ -201,6 +218,7 @@ function Credentials() {
       createdAt: new Date().toISOString().slice(0, 10),
     };
     setCreds((prev) => [entry, ...prev]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any)
       .from("credentials")
       .insert({
@@ -234,6 +252,7 @@ function Credentials() {
 
   function handleRemove(id: string) {
     setCreds((prev) => prev.filter((c) => c.id !== id));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any)
       .from("credentials")
       .delete()
@@ -244,6 +263,7 @@ function Credentials() {
 
   function handleUpdateEndUser(id: string, endUser: string) {
     setCreds((prev) => prev.map((c) => (c.id === id ? { ...c, endUser } : c)));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any)
       .from("credentials")
       .update({ end_user: endUser || null })

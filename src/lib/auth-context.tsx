@@ -38,7 +38,18 @@ const AuthContext = createContext<AuthContextType | null>(null);
 // Generated Supabase types don't match this app's actual profiles/invitations/settings
 // schema (see supabase/migrations/00002_auth.sql) — same workaround as project-context.tsx.
 function db() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return supabase as any;
+}
+
+function errorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  if (e && typeof e === "object" && "message" in e) {
+    const m = (e as { message: unknown }).message;
+    if (typeof m === "string") return m;
+  }
+  return "";
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -81,9 +92,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.warn("[Auth] loadProfile error:", e);
           }
         }
-      } catch (e: any) {
-        console.warn("[Auth] init error:", e?.message ?? e);
-        if (e?.message?.includes("Timeout")) {
+      } catch (e: unknown) {
+        const errMsg = errorMessage(e);
+        console.warn("[Auth] init error:", errMsg || e);
+        if (errMsg.includes("Timeout")) {
           const attempts = parseInt(sessionStorage.getItem("auth_retries") ?? "0", 10);
           if (attempts >= 2) {
             console.warn("[Auth] Supabase unreachable after retries — showing error");
@@ -201,8 +213,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       return error?.message ?? null;
-    } catch (e: any) {
-      return e?.message ?? "Failed to connect. Please try again.";
+    } catch (e: unknown) {
+      return errorMessage(e) || "Failed to connect. Please try again.";
     }
   }
 
@@ -261,8 +273,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(newProfile);
       }
       return null;
-    } catch (e: any) {
-      return e?.message ?? "Failed to connect. Please try again.";
+    } catch (e: unknown) {
+      return errorMessage(e) || "Failed to connect. Please try again.";
     }
   }
 
@@ -282,8 +294,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         redirectTo: `${window.location.origin}/auth`,
       });
       return error?.message ?? null;
-    } catch (e: any) {
-      return e?.message ?? "Failed to connect. Please try again.";
+    } catch (e: unknown) {
+      return errorMessage(e) || "Failed to connect. Please try again.";
     }
   }
 
