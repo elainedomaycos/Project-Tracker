@@ -82,6 +82,10 @@ type ProjectContextType = {
     endUsers: string[];
     modules: string[];
   }) => void;
+  updateProject: (
+    id: string,
+    updates: { clientName?: string; endUsers?: string[]; modules?: string[] },
+  ) => void;
   archiveProject: (id: string) => void;
   restoreProject: (id: string) => void;
   removeProject: (id: string) => void;
@@ -495,6 +499,23 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       .catch(() => notify("error", "Failed to create project"));
   }
 
+  function updateProject(
+    id: string,
+    updates: { clientName?: string; endUsers?: string[]; modules?: string[] },
+  ) {
+    setAllProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
+    const dbUpdates: Partial<{ client_name: string; end_users: string[]; modules: string[] }> = {};
+    if (updates.clientName !== undefined) dbUpdates.client_name = updates.clientName;
+    if (updates.endUsers !== undefined) dbUpdates.end_users = updates.endUsers;
+    if (updates.modules !== undefined) dbUpdates.modules = updates.modules;
+    db()
+      .from("projects")
+      .update(dbUpdates)
+      .eq("id", id)
+      .then(() => notify("success", "Project updated"))
+      .catch(() => notify("error", "Failed to update project"));
+  }
+
   function archiveProject(id: string) {
     const now = new Date().toISOString();
     setAllProjects((prev) => prev.map((p) => (p.id === id ? { ...p, archivedAt: now } : p)));
@@ -769,6 +790,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         setCurrentView,
         setCurrentDeveloper,
         addProject,
+        updateProject,
         archiveProject,
         restoreProject,
         removeProject,

@@ -25,6 +25,7 @@ import {
   UserCircle,
   Trophy,
   Archive,
+  Settings2,
 } from "lucide-react";
 
 import appCss from "../styles.css?url";
@@ -351,10 +352,39 @@ function AppShell({ pathname, queryClient }: { pathname: string; queryClient: Qu
 }
 
 function ProjectSelector() {
-  const { projects, currentProject, setCurrentProject, addProject, archiveProject } = useProject();
+  const { projects, currentProject, setCurrentProject, addProject, updateProject, archiveProject } =
+    useProject();
   const { isSuperAdmin } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: "", clientName: "", endUsers: "", modules: "" });
+  const [showManage, setShowManage] = useState(false);
+  const [manageForm, setManageForm] = useState({ clientName: "", endUsers: "", modules: "" });
+
+  function openManage() {
+    if (!currentProject) return;
+    setManageForm({
+      clientName: currentProject.clientName || "",
+      endUsers: (currentProject.endUsers ?? []).join(", "),
+      modules: (currentProject.modules ?? []).join(", "),
+    });
+    setShowManage(true);
+  }
+
+  function handleManage() {
+    if (!currentProject) return;
+    updateProject(currentProject.id, {
+      clientName: manageForm.clientName.trim(),
+      endUsers: manageForm.endUsers
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+      modules: manageForm.modules
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    });
+    setShowManage(false);
+  }
 
   function handleCreate() {
     if (!form.name.trim()) return;
@@ -399,6 +429,15 @@ function ProjectSelector() {
           >
             + New Project
           </button>
+          {currentProject && (
+            <button
+              onClick={openManage}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono uppercase text-muted-foreground border border-border/60 hover:bg-surface-2 transition-colors"
+            >
+              <Settings2 className="size-3" />
+              Manage
+            </button>
+          )}
           {projects.length > 1 && currentProject && (
             <button
               onClick={() => archiveProject(currentProject.id)}
@@ -492,6 +531,86 @@ function ProjectSelector() {
                 className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 disabled:opacity-50"
               >
                 Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showManage && currentProject && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/40"
+          onClick={() => setShowManage(false)}
+        >
+          <div
+            className="w-full max-w-sm bg-card border border-border rounded-lg shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <span className="text-sm font-semibold">Manage Project</span>
+              <button
+                onClick={() => setShowManage(false)}
+                className="p-1 rounded hover:bg-surface-2 text-muted-foreground"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              <p className="text-xs text-muted-foreground bg-surface-2 border border-border rounded-md px-3 py-2">
+                {currentProject.name}
+              </p>
+              <div>
+                <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                  Client Name
+                </label>
+                <input
+                  value={manageForm.clientName}
+                  onChange={(e) => setManageForm((p) => ({ ...p, clientName: e.target.value }))}
+                  placeholder="e.g. Acme Corp"
+                  className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                  End Users
+                </label>
+                <input
+                  value={manageForm.endUsers}
+                  onChange={(e) => setManageForm((p) => ({ ...p, endUsers: e.target.value }))}
+                  placeholder="Comma-separated (e.g. Admin, Manager, Staff)"
+                  className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  These are the users who use the system, used when assigning tasks and credentials.
+                </p>
+              </div>
+              <div>
+                <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                  Modules
+                </label>
+                <input
+                  value={manageForm.modules}
+                  onChange={(e) => setManageForm((p) => ({ ...p, modules: e.target.value }))}
+                  placeholder="Comma-separated (e.g. Dashboard, Reports, Auth)"
+                  className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Used in the module dropdown when creating tasks.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-4 py-3 border-t border-border">
+              <button
+                onClick={() => setShowManage(false)}
+                className="px-3 py-1.5 text-xs font-medium rounded border border-border hover:bg-surface-2"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleManage}
+                className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110"
+              >
+                Save
               </button>
             </div>
           </div>
