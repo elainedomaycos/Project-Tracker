@@ -69,7 +69,7 @@ const aiResultSchema = z.object({
 });
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const MODEL = "llama-3.3-70b-versatile";
+const MODEL = "openai/gpt-oss-120b";
 
 function extractJson(content: string): unknown {
   const trimmed = content.trim();

@@ -59,7 +59,7 @@ Two migrations directories exist: `supabase/migrations/` (`00001_schema.sql`, `0
 
 ### AI features
 
-`src/lib/ai.server.ts` wraps Groq (`llama-3.3-70b-versatile`) behind several `createServerFn`s (requirement analysis, commit message, branch name, task breakdown, daily/sprint scrum reports, QA check, project insights). Every handler prompts for strict JSON and has a hardcoded mock fallback if `GROQ_API_KEY` is missing or the call/parse fails — check these mocks when a feature "works" locally without a real key configured.
+`src/lib/ai.server.ts` wraps Groq (`openai/gpt-oss-120b`) behind several `createServerFn`s (requirement analysis, commit message, branch name, task breakdown, daily/sprint scrum reports, QA check, project insights). Every handler prompts for strict JSON and has a hardcoded mock fallback if `GROQ_API_KEY` is missing or the call/parse fails — check these mocks when a feature "works" locally without a real key configured.
 
 ### UI
 
