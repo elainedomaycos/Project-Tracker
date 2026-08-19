@@ -456,7 +456,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Keep the selected project in sync when another user archives, restores, or deletes it
+  // Keep the selected project in sync when projects change (edits, archives, deletes)
   useEffect(() => {
     if (!currentProject) return;
     const fresh = allProjects.find((p) => p.id === currentProject.id);
@@ -474,6 +474,16 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       } else {
         setCurrentProjectState(fresh);
       }
+    } else if (
+      fresh.clientName !== currentProject.clientName ||
+      fresh.endUsers.length !== currentProject.endUsers.length ||
+      fresh.endUsers.some((u, i) => u !== currentProject.endUsers[i]) ||
+      fresh.modules.length !== currentProject.modules.length ||
+      fresh.modules.some((m, i) => m !== currentProject.modules[i]) ||
+      fresh.name !== currentProject.name ||
+      fresh.prefix !== currentProject.prefix
+    ) {
+      setCurrentProjectState(fresh);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allProjects]);
