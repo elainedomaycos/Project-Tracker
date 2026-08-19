@@ -260,7 +260,7 @@ function AppShell({ pathname, queryClient }: { pathname: string; queryClient: Qu
       </div>
 
       {/* Desktop sidebar */}
-      <nav className="hidden lg:flex w-56 shrink-0 flex-col border-r border-border bg-sidebar">
+      <nav className="hidden lg:flex w-56 shrink-0 flex-col border-r border-border bg-sidebar overflow-hidden">
         <div className="h-14 flex items-center gap-3 px-5 border-b border-border">
           <div className="size-7 rounded-md bg-primary text-primary-foreground grid place-items-center font-bold italic text-sm">
             TT
@@ -620,25 +620,25 @@ function ProjectSelector() {
         <div className="flex gap-1">
           <button
             onClick={() => setShowModal(true)}
-            className="flex-1 px-2 py-1 rounded text-[10px] font-mono uppercase text-primary border border-primary/30 hover:bg-primary/5 transition-colors"
+            className="flex-1 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase text-primary border border-primary/30 hover:bg-primary/5 transition-colors"
           >
-            + New Project
+            + New
           </button>
           {currentProject && (
             <button
               onClick={openManage}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono uppercase text-muted-foreground border border-border/60 hover:bg-surface-2 transition-colors"
+              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase text-muted-foreground border border-border/60 hover:bg-surface-2 transition-colors"
             >
-              <Settings2 className="size-3" />
+              <Settings2 className="size-2.5" />
               Manage
             </button>
           )}
           {projects.length > 1 && currentProject && (
             <button
               onClick={() => archiveProject(currentProject.id)}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono uppercase text-warning border border-warning/30 hover:bg-warning/5 transition-colors"
+              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase text-warning border border-warning/30 hover:bg-warning/5 transition-colors"
             >
-              <Archive className="size-3" />
+              <Archive className="size-2.5" />
               Archive
             </button>
           )}

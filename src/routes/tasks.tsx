@@ -950,19 +950,64 @@ function TasksPage() {
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
                     Field
                   </div>
-                  <span className="text-sm">{selectedTask.field || "—"}</span>
+                  {!canEditTask(selectedTask) ? (
+                    <span className="text-sm">{selectedTask.field || "—"}</span>
+                  ) : (
+                    <select
+                      value={selectedTask.field}
+                      onChange={(e) => updateTask(selectedTask.id, { field: e.target.value })}
+                      className="w-full px-2 py-1 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                    >
+                      <option value="">—</option>
+                      {FIELD_OPTIONS.map((f) => (
+                        <option key={f} value={f}>
+                          {f}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div>
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
                     End User
                   </div>
-                  <span className="text-sm">{selectedTask.endUser || "—"}</span>
+                  {!canEditTask(selectedTask) ? (
+                    <span className="text-sm">{selectedTask.endUser || "—"}</span>
+                  ) : (
+                    <select
+                      value={selectedTask.endUser}
+                      onChange={(e) => updateTask(selectedTask.id, { endUser: e.target.value })}
+                      className="w-full px-2 py-1 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                    >
+                      <option value="">—</option>
+                      {(currentProj?.endUsers ?? []).map((u) => (
+                        <option key={u} value={u}>
+                          {u}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div>
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
                     Module
                   </div>
-                  <span className="text-sm">{selectedTask.module || "—"}</span>
+                  {!canEditTask(selectedTask) ? (
+                    <span className="text-sm">{selectedTask.module || "—"}</span>
+                  ) : (
+                    <select
+                      value={selectedTask.module}
+                      onChange={(e) => updateTask(selectedTask.id, { module: e.target.value })}
+                      className="w-full px-2 py-1 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                    >
+                      <option value="">—</option>
+                      {(currentProj?.modules ?? []).map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div>
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
@@ -1005,7 +1050,7 @@ function TasksPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <div className="text-[10px] font-mono uppercase text-muted-foreground mb-1">
                     Status
