@@ -220,23 +220,32 @@ export type Database = {
         Row: {
           id: string;
           name: string;
-          description: string | null;
+          prefix: string;
+          client_name: string;
+          end_users: string[] | null;
+          modules: string[] | null;
           created_at: string;
-          created_by: string;
+          archived_at: string | null;
         };
         Insert: {
-          id?: string;
+          id: string;
           name: string;
-          description?: string | null;
-          created_at?: string;
-          created_by: string;
+          prefix?: string;
+          client_name?: string;
+          end_users?: string[] | null;
+          modules?: string[] | null;
+          created_at: string;
+          archived_at?: string | null;
         };
         Update: {
           id?: string;
           name?: string;
-          description?: string | null;
+          prefix?: string;
+          client_name?: string;
+          end_users?: string[] | null;
+          modules?: string[] | null;
           created_at?: string;
-          created_by?: string;
+          archived_at?: string | null;
         };
         Relationships: [];
       };
