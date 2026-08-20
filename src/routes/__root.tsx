@@ -578,6 +578,7 @@ function ProjectSelector() {
   }
 
   function handleManage() {
+    console.log("[handleManage] currentProject:", currentProject?.id, "manageForm:", manageForm);
     if (!currentProject) return;
     updateProject(currentProject.id, {
       clientName: manageForm.clientName.trim(),

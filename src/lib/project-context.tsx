@@ -586,8 +586,14 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       .from("projects")
       .update(dbUpdates)
       .eq("id", id)
-      .then(() => notify("success", "Project updated"))
-      .catch(() => notify("error", "Failed to update project"));
+      .then((res) => {
+        console.log("[updateProject] success:", res);
+        notify("success", "Project updated");
+      })
+      .catch((err) => {
+        console.error("[updateProject] error:", err);
+        notify("error", "Failed to update project");
+      });
   }
 
   function archiveProject(id: string) {
