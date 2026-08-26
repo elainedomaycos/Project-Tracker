@@ -485,7 +485,7 @@ function TagDropdown({
   }
 
   return (
-    <div className="mt-1" ref={rootRef}>
+    <div className="relative mt-1" ref={rootRef}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -500,7 +500,7 @@ function TagDropdown({
       </button>
 
       {open && (
-        <div className="mt-1 bg-popover border border-border rounded-md shadow-lg overflow-hidden">
+        <div className="absolute z-50 mt-1 w-full bg-popover border border-border rounded-md shadow-lg overflow-hidden">
           {items.length > 0 ? (
             <div className="max-h-40 overflow-y-auto">
               {items.map((item) => (
@@ -578,7 +578,6 @@ function ProjectSelector() {
   }
 
   function handleManage() {
-    console.log("[handleManage] currentProject:", currentProject?.id, "manageForm:", manageForm);
     if (!currentProject) return;
     updateProject(currentProject.id, {
       clientName: manageForm.clientName.trim(),
