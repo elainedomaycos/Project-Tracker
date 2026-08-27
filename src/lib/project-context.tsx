@@ -586,12 +586,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       .from("projects")
       .update(dbUpdates)
       .eq("id", id)
-      .then((res) => {
-        console.log("[updateProject] success:", res);
+      .then(() => {
         notify("success", "Project updated");
       })
-      .catch((err) => {
-        console.error("[updateProject] error:", err);
+      .catch(() => {
         notify("error", "Failed to update project");
       });
   }

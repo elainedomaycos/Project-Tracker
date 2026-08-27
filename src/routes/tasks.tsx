@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { useProject, type Task, type TaskStatus, type QaStatus } from "@/lib/project-context";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
+import { generateTaskFromDescription } from "@/lib/task-ai";
+import { toast } from "sonner";
 import {
   Plus,
   X,
@@ -17,6 +19,8 @@ import {
   Users,
   Puzzle,
   ArrowUpDown,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 
 export const Route = createFileRoute("/tasks")({
@@ -106,6 +110,9 @@ function TasksPage() {
     dueDate: "",
     priority: "medium" as Task["priority"],
   });
+  const [newMode, setNewMode] = useState<"manual" | "ai">("manual");
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -292,6 +299,37 @@ function TasksPage() {
       priority: "medium",
     });
     setShowNewModal(false);
+  }
+
+  async function handleAiGenerate() {
+    if (!aiPrompt.trim() || !pid) return;
+    setAiLoading(true);
+    try {
+      const parsed = await generateTaskFromDescription({
+        description: aiPrompt.trim(),
+        endUsers: currentProj?.endUsers ?? [],
+        modules: currentProj?.modules ?? [],
+        developers,
+      });
+      setForm((p) => ({
+        ...p,
+        title: parsed.title,
+        description: parsed.description,
+        field: parsed.field,
+        priority: parsed.priority,
+        endUser: parsed.endUser,
+        module: parsed.module,
+        developer: parsed.developer,
+        startDate: parsed.startDate || p.startDate,
+        dueDate: parsed.dueDate,
+      }));
+      setNewMode("manual");
+      toast.success("AI drafted the task — review the fields, then create");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "AI request failed");
+    } finally {
+      setAiLoading(false);
+    }
   }
 
   function copyTaskId(taskId: string) {
@@ -694,6 +732,60 @@ function TasksPage() {
               </button>
             </div>
             <div className="p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setNewMode("manual")}
+                  className={`px-3 py-1.5 text-xs font-medium rounded border ${
+                    newMode === "manual"
+                      ? "bg-primary/10 border-primary text-primary"
+                      : "border-border bg-surface-2 text-muted-foreground hover:bg-surface-2/80"
+                  }`}
+                >
+                  Manual
+                </button>
+                <button
+                  onClick={() => setNewMode("ai")}
+                  className={`px-3 py-1.5 text-xs font-medium rounded border flex items-center gap-1.5 ${
+                    newMode === "ai"
+                      ? "bg-primary/10 border-primary text-primary"
+                      : "border-border bg-surface-2 text-muted-foreground hover:bg-surface-2/80"
+                  }`}
+                >
+                  <Sparkles className="size-3" />
+                  AI Assisted
+                </button>
+              </div>
+
+              {newMode === "ai" && (
+                <div className="p-3 rounded-md border border-border bg-surface-2/50 space-y-2">
+                  <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                    Describe the problem or ticket
+                  </label>
+                  <textarea
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    placeholder="e.g. Users can't log in with Google after the latest update, shows a 500 error. Should be high priority and related to Authentication module."
+                    className="w-full h-24 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary resize-none"
+                  />
+                  <button
+                    onClick={handleAiGenerate}
+                    disabled={!aiPrompt.trim() || aiLoading}
+                    className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {aiLoading ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="size-3.5" />
+                    )}
+                    {aiLoading ? "Generating..." : "Generate Task"}
+                  </button>
+                  <p className="text-[10px] text-muted-foreground">
+                    The AI will draft the title, description, field, priority, end user, module, and
+                    developer. Review the fields below before creating.
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="text-[10px] font-mono uppercase text-muted-foreground">
                   Title *
