@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/console";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Plus,
@@ -14,6 +14,9 @@ import {
   Database,
   Lock,
   Search,
+  Upload,
+  Download,
+  FileCode,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useProject } from "@/lib/project-context";
@@ -74,6 +77,59 @@ function generateId() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
+type ParsedEnvVar = { key: string; value: string; include: boolean };
+
+function parseEnvFile(text: string): ParsedEnvVar[] {
+  const out: ParsedEnvVar[] = [];
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+    const withoutExport = line.startsWith("export ") ? line.slice(7) : line;
+    const eq = withoutExport.indexOf("=");
+    if (eq === -1) continue;
+    const key = withoutExport.slice(0, eq).trim();
+    if (!key || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
+    let value = withoutExport.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    // strip inline comments on unquoted values, e.g. FOO=bar # comment
+    const hashIdx = value.indexOf(" #");
+    if (hashIdx !== -1 && !value.startsWith('"') && !value.startsWith("'")) {
+      value = value.slice(0, hashIdx).trim();
+    }
+    out.push({ key, value, include: true });
+  }
+  return out;
+}
+
+function envQuoteValue(value: string): string {
+  if (value === "") return '""';
+  if (/^[A-Za-z0-9_.\-/:@]+$/.test(value)) return value;
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`;
+}
+
+function toEnvLine(c: { key: string; value: string }): string {
+  return `${c.key}=${envQuoteValue(c.value)}`;
+}
+
+function toEnvBlock(list: { key: string; value: string }[]): string {
+  return list.map(toEnvLine).join("\n") + "\n";
+}
+
+function downloadTextFile(filename: string, content: string) {
+  const blob = new Blob([content], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function fromDbCred(r: CredRow): Credential {
   return {
     id: r.id,
@@ -120,8 +176,20 @@ function Credentials() {
   const [showModal, setShowModal] = useState(false);
   const [visible, setVisible] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [envCopiedId, setEnvCopiedId] = useState<string | null>(null);
+  const [copiedAllEnv, setCopiedAllEnv] = useState(false);
   const [search, setSearch] = useState("");
   const [sortEndUser, setSortEndUser] = useState("");
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importVars, setImportVars] = useState<ParsedEnvVar[]>([]);
+  const [importFileName, setImportFileName] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importForm, setImportForm] = useState({
+    projectId: "",
+    service: "",
+    endUser: "",
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const pid = currentProject?.id ?? null;
   const visibleCreds = pid ? creds.filter((c) => c.projectId === pid) : creds;
@@ -250,6 +318,69 @@ function Credentials() {
     setShowModal(false);
   }
 
+  function openImportModal() {
+    setImportForm({ projectId: pid ?? "", service: "", endUser: "" });
+    setImportVars([]);
+    setImportFileName("");
+    setShowImportModal(true);
+  }
+
+  function handleEnvFile(file: File) {
+    file.text().then((text) => {
+      const parsed = parseEnvFile(text);
+      setImportVars(parsed);
+      setImportFileName(file.name);
+      if (parsed.length === 0) toast.error("No KEY=VALUE pairs found in that file");
+    });
+  }
+
+  function toggleImportVar(key: string) {
+    setImportVars((prev) =>
+      prev.map((v) => (v.key === key ? { ...v, include: !v.include } : v)),
+    );
+  }
+
+  function handleImportSave() {
+    const selected = importVars.filter((v) => v.include && v.value);
+    if (!importForm.projectId || selected.length === 0) return;
+    const now = new Date().toISOString();
+    const entries: Credential[] = selected.map((v) => ({
+      id: generateId(),
+      projectId: importForm.projectId,
+      type: "api",
+      service: importForm.service.trim() || importFileName.replace(/\.env.*$/i, "") || "Imported",
+      key: v.key,
+      value: v.value,
+      endUser: importForm.endUser,
+      description: "",
+      createdAt: now.slice(0, 10),
+    }));
+    setCreds((prev) => [...entries, ...prev]);
+    setImporting(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
+      .from("credentials")
+      .insert(
+        entries.map((entry) => ({
+          id: entry.id,
+          project_id: entry.projectId,
+          type: entry.type,
+          service: entry.service,
+          username: null,
+          key: entry.key,
+          value: entry.value,
+          url: null,
+          end_user: entry.endUser || null,
+          description: entry.description,
+          created_at: now,
+        })),
+      )
+      .then(() => toast.success(`Imported ${entries.length} credential${entries.length === 1 ? "" : "s"}`))
+      .catch(() => toast.error("Failed to import credentials"))
+      .finally(() => setImporting(false));
+    setShowImportModal(false);
+  }
+
   function handleRemove(id: string) {
     setCreds((prev) => prev.filter((c) => c.id !== id));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -279,6 +410,28 @@ function Credentials() {
     });
   }
 
+  function handleCopyEnvLine(c: Credential) {
+    navigator.clipboard.writeText(toEnvLine(c)).then(() => {
+      setEnvCopiedId(c.id);
+      toast.success(`Copied ${c.key}=... `);
+      setTimeout(() => setEnvCopiedId(null), 1500);
+    });
+  }
+
+  function handleCopyAllEnv() {
+    if (filteredCreds.length === 0) return;
+    navigator.clipboard.writeText(toEnvBlock(filteredCreds)).then(() => {
+      setCopiedAllEnv(true);
+      toast.success(`Copied ${filteredCreds.length} vars as .env`);
+      setTimeout(() => setCopiedAllEnv(false), 1500);
+    });
+  }
+
+  function handleDownloadEnv() {
+    if (filteredCreds.length === 0) return;
+    downloadTextFile(".env", toEnvBlock(filteredCreds));
+  }
+
   function maskValue(val: string) {
     if (val.length <= 8) return "•".repeat(val.length);
     return val.slice(0, 4) + "•".repeat(Math.min(val.length - 8, 24)) + val.slice(-4);
@@ -290,13 +443,22 @@ function Credentials() {
         crumbs={[{ label: "Scrum AI" }, { label: "Credentials" }]}
         status={{ label: `${visibleCreds.length} stored`, tone: "info" }}
         actions={
-          <button
-            onClick={openModal}
-            className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 flex items-center gap-1.5"
-          >
-            <Plus className="size-3.5" />
-            Add Credential
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={openImportModal}
+              className="px-3 py-1.5 bg-surface-2 border border-border text-xs font-bold rounded hover:border-primary/40 flex items-center gap-1.5"
+            >
+              <Upload className="size-3.5" />
+              Import .env
+            </button>
+            <button
+              onClick={openModal}
+              className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 flex items-center gap-1.5"
+            >
+              <Plus className="size-3.5" />
+              Add Credential
+            </button>
+          </div>
         }
       />
 
@@ -346,6 +508,30 @@ function Credentials() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div className="flex items-center gap-1.5 ml-auto">
+                <button
+                  onClick={handleCopyAllEnv}
+                  disabled={filteredCreds.length === 0}
+                  title="Copy all shown credentials as a .env block"
+                  className="px-2.5 py-1.5 rounded-md bg-surface-2 border border-border text-xs flex items-center gap-1.5 hover:border-primary/40 disabled:opacity-50"
+                >
+                  {copiedAllEnv ? (
+                    <CheckCircle2 className="size-3 text-success" />
+                  ) : (
+                    <FileCode className="size-3" />
+                  )}
+                  Copy .env
+                </button>
+                <button
+                  onClick={handleDownloadEnv}
+                  disabled={filteredCreds.length === 0}
+                  title="Download shown credentials as a .env file"
+                  className="px-2.5 py-1.5 rounded-md bg-surface-2 border border-border text-xs flex items-center gap-1.5 hover:border-primary/40 disabled:opacity-50"
+                >
+                  <Download className="size-3" />
+                  Download
+                </button>
               </div>
             </div>
 
@@ -447,12 +633,23 @@ function Credentials() {
                               <button
                                 onClick={() => handleCopy(c.value, c.id)}
                                 className="p-0.5 rounded hover:bg-surface-2 text-muted-foreground shrink-0"
-                                title="Copy"
+                                title="Copy value"
                               >
                                 {copiedId === c.id ? (
                                   <CheckCircle2 className="size-3 text-success" />
                                 ) : (
                                   <Copy className="size-3" />
+                                )}
+                              </button>
+                              <button
+                                onClick={() => handleCopyEnvLine(c)}
+                                className="p-0.5 rounded hover:bg-surface-2 text-muted-foreground shrink-0"
+                                title={`Copy as ${c.key}=...`}
+                              >
+                                {envCopiedId === c.id ? (
+                                  <CheckCircle2 className="size-3 text-success" />
+                                ) : (
+                                  <FileCode className="size-3" />
                                 )}
                               </button>
                             </div>
@@ -675,6 +872,185 @@ function Credentials() {
                 className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 disabled:opacity-50"
               >
                 Save Credential
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showImportModal && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/40"
+          onClick={() => setShowImportModal(false)}
+        >
+          <div
+            className="w-full max-w-xl bg-card border border-border rounded-lg shadow-xl max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+              <span className="text-sm font-semibold flex items-center gap-2">
+                <Upload className="size-4 text-primary" /> Import .env File
+              </span>
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="p-1 rounded hover:bg-surface-2 text-muted-foreground"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4 overflow-y-auto">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".env,.env.*,text/plain"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleEnvFile(file);
+                  e.target.value = "";
+                }}
+              />
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handleEnvFile(file);
+                }}
+                className="border border-dashed border-border rounded-md px-4 py-6 text-center cursor-pointer hover:border-primary/40 bg-surface-2/50"
+              >
+                <Upload className="size-5 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">
+                  {importFileName || "Click to select or drag & drop a .env file"}
+                </p>
+              </div>
+
+              {importVars.length > 0 && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    {!pid && (
+                      <div>
+                        <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                          Project *
+                        </label>
+                        <select
+                          value={importForm.projectId}
+                          onChange={(e) =>
+                            setImportForm((p) => ({
+                              ...p,
+                              projectId: e.target.value,
+                              endUser: "",
+                            }))
+                          }
+                          className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                        >
+                          <option value="">Select project…</option>
+                          {projects.map((proj) => (
+                            <option key={proj.id} value={proj.id}>
+                              {proj.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div>
+                      <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                        Service
+                      </label>
+                      <input
+                        value={importForm.service}
+                        onChange={(e) =>
+                          setImportForm((p) => ({ ...p, service: e.target.value }))
+                        }
+                        placeholder={importFileName.replace(/\.env.*$/i, "") || "e.g. Production"}
+                        className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                        End User
+                      </label>
+                      <select
+                        value={importForm.endUser}
+                        onChange={(e) =>
+                          setImportForm((p) => ({ ...p, endUser: e.target.value }))
+                        }
+                        className="w-full mt-1 px-3 py-2 rounded-md bg-surface-2 border border-border text-sm focus:outline-none focus:border-primary"
+                      >
+                        <option value="">—</option>
+                        {(allProjects.find((p) => p.id === importForm.projectId)?.endUsers ?? []).map(
+                          (u) => (
+                            <option key={u} value={u}>
+                              {u}
+                            </option>
+                          ),
+                        )}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] font-mono uppercase text-muted-foreground">
+                        Parsed Variables ({importVars.filter((v) => v.include).length}/
+                        {importVars.length})
+                      </label>
+                      <button
+                        onClick={() =>
+                          setImportVars((prev) =>
+                            prev.map((v) => ({
+                              ...v,
+                              include: !prev.every((x) => x.include),
+                            })),
+                          )
+                        }
+                        className="text-[10px] text-primary hover:underline"
+                      >
+                        Toggle all
+                      </button>
+                    </div>
+                    <div className="border border-border rounded-md divide-y divide-border/60 max-h-56 overflow-y-auto">
+                      {importVars.map((v) => (
+                        <label
+                          key={v.key}
+                          className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-surface-2/50 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={v.include}
+                            onChange={() => toggleImportVar(v.key)}
+                            className="shrink-0"
+                          />
+                          <code className="font-mono font-semibold shrink-0">{v.key}</code>
+                          <code className="font-mono text-muted-foreground truncate">
+                            {v.value ? maskValue(v.value) : "(empty)"}
+                          </code>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="px-4 py-2 text-xs font-medium rounded border border-border hover:bg-surface-2"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleImportSave}
+                disabled={
+                  importing ||
+                  !importForm.projectId ||
+                  importVars.filter((v) => v.include && v.value).length === 0
+                }
+                className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded hover:brightness-110 disabled:opacity-50"
+              >
+                Import {importVars.filter((v) => v.include && v.value).length || ""} Credential
+                {importVars.filter((v) => v.include && v.value).length === 1 ? "" : "s"}
               </button>
             </div>
           </div>
